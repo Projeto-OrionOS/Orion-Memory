@@ -6,7 +6,7 @@ O Orion Memory monitora o uso de RAM, a memória comprometida e o cache do siste
 
 ## Download do Orion Memory
 
-Acesse **[Releases — Orion Memory](https://github.com/Projeto-OrionOS/Orion-Memory/releases)** para baixar o pacote para Windows x64, que inclui o aplicativo e os arquivos de idiomas.
+Baixe o **[Orion Memory v1.0.0 — instalador oficial](https://github.com/Projeto-OrionOS/Orion-Memory/releases/tag/v1.0.0)** para Windows x64 na página **Releases**. Não é necessário compilar o programa para instalá-lo.
 
 ## Interface
 
@@ -28,29 +28,6 @@ O **Orion Memory é gratuito**. Você pode divulgar o projeto, criar vídeos e t
 
 > A liberação de caches e conjuntos de trabalho pode aumentar a atividade de disco ou prejudicar temporariamente o desempenho. O aplicativo não aumenta a memória RAM física.
 
-## Compilação
-
-**Requisitos:** Windows x64 e PowerShell. O script utiliza o compilador **Zig 0.15.2**, que pode ser localizado no computador ou baixado em versão portátil mediante autorização.
-
-Para compilar manualmente no Windows, utilize:
-
-```powershell
-.\scripts\Build-Native.ps1 -InstallZig -Runtime win-x64
-```
-
-O script compila o aplicativo, executa o autoteste nativo e, se tudo passar, gera:
-
-- `dist/win-x64/OrionMemory.exe`
-- `dist/OrionMemory_v1.0.0_win-x64.zip`
-
-Para executar a verificação estática do projeto:
-
-```powershell
-python Tests/Native/revisao_qualidade.py
-```
-
-Os testes de compilação e de comportamento devem ser confirmados em Windows real. O consumo de RAM pode variar de acordo com o sistema e as janelas abertas.
-
 ## Estrutura
 
 | Caminho | Conteúdo |
@@ -65,9 +42,7 @@ Os testes de compilação e de comportamento devem ser confirmados em Windows re
 
 ## Publicação
 
-A aba **Actions** permite executar o workflow `Orion Memory | Build Windows x64`. Após uma compilação bem-sucedida, o ZIP será disponibilizado como **artefato do workflow**. Artefatos de teste não são automaticamente uma Release oficial.
-
-A versão pública do Orion Memory é **v1.0.0**. O código do instalador é mantido separadamente.
+O **Orion Memory v1.0.0** está disponível na [página oficial de download](https://github.com/Projeto-OrionOS/Orion-Memory/releases/tag/v1.0.0), com o instalador `OrionMemory_Setup_v1.0.0.exe` para Windows x64. Os lançamentos oficiais e seus arquivos ficam na seção **Releases**.
 
 ## Segurança
 
