@@ -28,7 +28,7 @@ Acesse **[Releases — Orion Memory](https://github.com/Projeto-OrionOS/Orion-Me
 
 **Requisitos:** Windows x64 e PowerShell. O script utiliza o compilador **Zig 0.15.2**, que pode ser localizado no computador ou baixado em versão portátil mediante autorização.
 
-Para compilar, execute `Compilar.bat`. Alternativamente, utilize:
+Para compilar manualmente no Windows, utilize:
 
 ```powershell
 .\scripts\Build-Native.ps1 -InstallZig -Runtime win-x64
@@ -57,7 +57,6 @@ Os testes de compilação e de comportamento devem ser confirmados em Windows re
 | `Languages.json` | Catálogo de idiomas |
 | `Tests/` | Testes e diagnósticos |
 | `scripts/` | Script nativo de compilação |
-| `Compilar.bat` | Entrada única para compilar no Windows |
 | `.github/workflows/` | Compilação automática Windows x64 |
 
 ## Publicação
@@ -70,6 +69,8 @@ A versão pública do Orion Memory é **v1.0.0**. O código do instalador é man
 
 Algumas operações avançadas exigem privilégios do Windows. Verifique a origem dos arquivos e seus hashes SHA-256. Um hash não substitui uma assinatura digital Authenticode.
 
-## Licença
+## Licença e direitos autorais
 
-Ainda não há licença de redistribuição definida. A disponibilização pública do código não concede automaticamente permissão de uso, modificação ou redistribuição além do que a lei permite.
+**© 2026 Orion Company — Todos os direitos reservados.** O Orion Memory está sujeito à [licença proprietária](LICENSE). As versões oficiais compiladas podem ser utilizadas nos termos da licença; o código-fonte não pode ser copiado para outros projetos, modificado ou redistribuído sem autorização por escrito, ressalvadas as permissões e exceções previstas em lei e nos termos da plataforma.
+
+A publicação do repositório não constitui uma licença de código aberto.
