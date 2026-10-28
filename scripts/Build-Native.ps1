@@ -1,5 +1,5 @@
 ﻿# Orion Memory - compilacao nativa Windows, sem instalacao global de ferramentas.
-# Execute Compilar.bat na pasta principal ou invoque este script manualmente.
+# Execute este script diretamente no PowerShell ou pelo workflow do GitHub Actions.
 [CmdletBinding()]
 param(
     [ValidateSet('win-x64','win-arm64')][string]$Runtime = 'win-x64',
