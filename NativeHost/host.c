@@ -220,7 +220,7 @@ static const wchar_t *windows_ui_locale(void){
   for(DWORD i=0;i<count && at<1024 && languages[at];++i){
    const wchar_t *result=mapped_locale(languages+at);
    if(result)return result;
-   at+=wlen(languages+at)+1;
+   at+=wcslen(languages+at)+1;
   }
  }
  /* Last resort when the user preferred UI-language API is unavailable. */
