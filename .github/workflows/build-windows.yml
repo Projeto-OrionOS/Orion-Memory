@@ -9,9 +9,13 @@ on:
       - "Assets/**"
       - "Languages/**"
       - "Languages.json"
+      - "app.manifest"
       - "Tests/Native/**"
-      - "Build-Native.ps1"
+      - "scripts/Build-Native.ps1"
+      - "Compilar.bat"
       - ".github/workflows/build-windows.yml"
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -20,9 +24,9 @@ jobs:
   build:
     name: Compilar e testar (Windows x64)
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
-      - name: Obter código-fonte
+      - name: Obter codigo-fonte
         uses: actions/checkout@v4
 
       - name: Preparar Python
@@ -30,22 +34,36 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validar arquivos do aplicativo
+      - name: Verificar estrutura e testes estaticos
         shell: pwsh
         run: |
-          $required = @("NativeHost/host.c", "NativeHost/host.rc", "Build-Native.ps1", "Languages.json")
+          $required = @(
+            "NativeHost/host.c",
+            "NativeHost/host.rc",
+            "scripts/Build-Native.ps1",
+            "Compilar.bat",
+            "Languages.json",
+            "Tests/Native/revisao_qualidade.py"
+          )
           foreach ($path in $required) {
-            if (!(Test-Path -LiteralPath $path)) {
-              throw "Código-fonte incompleto: falta $path"
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Arquivo obrigatorio ausente: $path"
             }
           }
           python Tests/Native/revisao_qualidade.py
+          if ($LASTEXITCODE -ne 0) { throw "Verificacao estatica falhou." }
 
       - name: Compilar com Zig 0.15.2 e executar autotestes
         shell: pwsh
-        run: ./Build-Native.ps1 -InstallZig -Runtime win-x64
+        run: .\scripts\Build-Native.ps1 -InstallZig -Runtime win-x64
 
-      - name: Publicar artefato portátil
+      - name: Conferir resultado
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath "dist/win-x64/OrionMemory.exe")) { throw "EXE nao encontrado." }
+          if (-not (Test-Path -LiteralPath "dist/OrionMemory_v1.0.0_win-x64.zip")) { throw "ZIP nao encontrado." }
+
+      - name: Disponibilizar ZIP portatil
         uses: actions/upload-artifact@v4
         with:
           name: OrionMemory-v1.0.0-win-x64

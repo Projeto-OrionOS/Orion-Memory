@@ -1,69 +1,67 @@
 # Orion Memory
 
-**Gerenciamento de memória para Windows, leve e nativo.**
+**Gerenciador de memória nativo para Windows — v1.0.0**
 
-Orion Memory é um utilitário para monitorar o uso de memória RAM e executar operações de liberação de memória selecionadas pelo usuário. Desenvolvido em **C com a API Win32**, sem depender do .NET para executar.
-
-**Versão oficial:** `v1.0.0` · **Plataforma:** Windows x64
+O Orion Memory monitora o uso de RAM, a memória comprometida e o cache do sistema. Oferece limpeza manual configurável e um indicador dinâmico de uso de memória na área de notificação. Desenvolvido em **C/Win32**, sem exigir .NET para executar.
 
 ## Funcionalidades
 
-- Monitoramento da memória física, memória comprometida e cache do sistema.
-- Nove operações selecionáveis de limpeza de memória.
-- Indicador de RAM na área de notificação, com menu contextual compacto.
-- Configurações de aparência, ícone da bandeja, atalhos e notificações.
+- Monitoramento de memória física, memória comprometida e cache.
+- Nove operações selecionáveis de liberação de memória.
+- Indicador numérico de RAM na bandeja e menu contextual.
+- Configurações de aparência, atalhos e notificações.
 - Histórico de limpezas e opções de inicialização com o Windows.
-- Até 30 idiomas, com detecção do idioma do Windows na primeira execução.
-- Executável nativo, sem necessidade de instalar .NET.
+- 30 idiomas e detecção do idioma do sistema na primeira execução.
+- Aplicativo nativo para Windows x64.
 
-> **Atenção:** liberar caches e conjuntos de trabalho pode aumentar leituras de disco ou prejudicar temporariamente o desempenho. O Orion Memory não aumenta a RAM física. Algumas operações exigem privilégios de administrador. Use opções avançadas com critério.
+> A liberação de caches e conjuntos de trabalho pode aumentar a atividade de disco ou prejudicar temporariamente o desempenho. O aplicativo não aumenta a memória RAM física.
 
-## Instalação
+## Compilação
 
-Após a publicação da versão oficial, baixe o pacote Windows x64 na seção **Releases**. Para a versão portátil, mantenha `Languages/` e `Languages.json` junto ao `OrionMemory.exe`.
+**Requisitos:** Windows x64 e PowerShell. O script utiliza o compilador **Zig 0.15.2**, que pode ser localizado no computador ou baixado em versão portátil mediante autorização.
 
-A versão oficial do projeto é **v1.0.0**. A ausência de uma versão em Releases significa que o pacote de distribuição ainda não foi publicado ali.
-
-## Compilar a partir do código-fonte
-
-Requisitos: Windows x64, PowerShell e **Zig 0.15.2**. O script de compilação pode localizar uma instalação local do Zig ou baixar a distribuição oficial mediante autorização.
+Para compilar, execute `Compilar.bat`. Alternativamente, utilize:
 
 ```powershell
-.\Build-Native.ps1 -InstallZig -Runtime win-x64
+.\scripts\Build-Native.ps1 -InstallZig -Runtime win-x64
 ```
 
-O resultado esperado é `dist/win-x64/OrionMemory.exe` e, após validação, `dist/OrionMemory_v1.0.0_win-x64.zip`.
+O script compila o aplicativo, executa o autoteste nativo e, se tudo passar, gera:
 
-Para os testes:
+- `dist/win-x64/OrionMemory.exe`
+- `dist/OrionMemory_v1.0.0_win-x64.zip`
+
+Para executar a verificação estática do projeto:
 
 ```powershell
 python Tests/Native/revisao_qualidade.py
-.\Testar-Windows.ps1
 ```
 
-A aba **Actions** contém um workflow de compilação Windows x64. Após enviar o código-fonte, ele pode produzir um artefato ZIP de teste para download. Um artefato de CI não equivale automaticamente a uma versão final assinada.
+Os testes de compilação e de comportamento devem ser confirmados em Windows real. O consumo de RAM pode variar de acordo com o sistema e as janelas abertas.
 
-## Organização do projeto
+## Estrutura
 
 | Caminho | Conteúdo |
 |---|---|
-| `NativeHost/` | Aplicativo nativo C / Win32 |
-| `Assets/` | Ícones e recursos visuais |
-| `Languages/` e `Languages.json` | Localização do aplicativo |
-| `Tests/Native/` | Testes e verificações |
-| `Build-Native.ps1` | Compilação e empacotamento |
-| `.github/workflows/` | Compilação automatizada |
+| `NativeHost/` | Código-fonte C e recursos Win32 |
+| `Assets/` | Ícones e imagens |
+| `Languages/` | Traduções do aplicativo |
+| `Languages.json` | Catálogo de idiomas |
+| `Tests/` | Testes e diagnósticos |
+| `scripts/` | Script nativo de compilação |
+| `Compilar.bat` | Entrada única para compilar no Windows |
+| `.github/workflows/` | Compilação automática Windows x64 |
 
-O instalador é desenvolvido e distribuído separadamente; este repositório se destina ao código-fonte do **aplicativo Orion Memory**.
+## Publicação
 
-## Segurança e privacidade
+A aba **Actions** permite executar o workflow `Orion Memory | Build Windows x64`. Após uma compilação bem-sucedida, o ZIP será disponibilizado como **artefato do workflow**. Artefatos de teste não são automaticamente uma Release oficial.
 
-- Não execute arquivos obtidos de fontes não oficiais.
-- Verifique os hashes de distribuição quando forem publicados.
-- O aplicativo pode solicitar elevação apenas para operações que dependem dela.
-- Configurações e histórico ficam no perfil do usuário.
-- **Assinatura digital:** não presuma que um binário está assinado; confira nas propriedades do arquivo antes de instalar.
+A versão pública do Orion Memory é **v1.0.0**. O código do instalador é mantido separadamente.
+
+## Segurança
+
+Algumas operações avançadas exigem privilégios do Windows. Verifique a origem dos arquivos e seus hashes SHA-256. Um hash não substitui uma assinatura digital Authenticode.
 
 ## Licença
 
-O repositório ainda não declara uma licença de software. Tornar o código público não concede automaticamente permissão para redistribuí-lo ou modificá-lo. A licença será definida pelo mantenedor do projeto.
+Ainda não há licença de redistribuição definida. A disponibilização pública do código não concede automaticamente permissão de uso, modificação ou redistribuição além do que a lei permite.
