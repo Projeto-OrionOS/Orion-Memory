@@ -1,0 +1,40 @@
+name: Publicar Orion Memory v1.0.0
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    if: github.event.release.tag_name == 'v1.0.0'
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Obter codigo-fonte
+        uses: actions/checkout@v4
+      - name: Preparar Zig 0.15.2
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
+        with:
+          version: 0.15.2
+      - name: Verificar codigo-fonte e traducoes
+        shell: pwsh
+        run: |
+          python --version
+          python Tests/Native/revisao_qualidade.py
+          if ($LASTEXITCODE -ne 0) { throw "Os testes estaticos falharam." }
+      - name: Compilar e testar o aplicativo
+        shell: pwsh
+        run: |
+          $zig = (Get-Command zig -ErrorAction Stop).Source
+          .\scripts\Build-Native.ps1 -ZigPath $zig -NoDownload -Runtime win-x64
+      - name: Publicar ZIP na Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $file = "dist/OrionMemory_v1.0.0_win-x64.zip"
+          if (-not (Test-Path -LiteralPath $file)) { throw "Pacote ausente: $file" }
+          gh release upload "${{ github.event.release.tag_name }}" $file --clobber
