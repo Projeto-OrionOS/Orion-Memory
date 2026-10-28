@@ -1,49 +1,67 @@
-ORION MEMORY — LICENÇA PROPRIETÁRIA
+ORION MEMORY — LICENÇA PROPRIETÁRIA DE USO E COMPARTILHAMENTO GRATUITO
 Copyright © 2026 Orion Company. Todos os direitos reservados.
 
-1. TITULARIDADE
-O código-fonte original, os recursos visuais originais, os materiais de
-documentação e os executáveis do Orion Memory estão sujeitos à proteção
-por direitos autorais de seus respectivos titulares. Orion Company
-reserva todos os direitos que legitimamente detém sobre esses materiais.
+1. OBJETO E TITULARIDADE
+O Orion Memory é um aplicativo proprietário. Os direitos autorais sobre
+o código, os recursos visuais e os materiais originais permanecem com
+seus respectivos titulares. Esta licença autoriza expressamente apenas
+os usos definidos a seguir.
 
-2. USO DO APLICATIVO
-É concedida uma permissão limitada, não exclusiva e intransferível
-para instalar e executar gratuitamente as versões oficiais compiladas
-do Orion Memory, obtidas pelos canais oficiais do projeto, para uso
-pessoal ou interno. Esta permissão não autoriza redistribuição.
+2. PERMISSÕES GRATUITAS
+É permitida, sem necessidade de autorização individual:
+(a) a instalação e a utilização gratuitas das versões oficiais do
+    Orion Memory para fins pessoais ou internos;
+(b) a divulgação do Orion Memory por meio de publicações, vídeos,
+    avaliações, tutoriais, capturas de tela e links para a página oficial;
+(c) a cópia e redistribuição GRATUITA dos executáveis e pacotes oficiais
+    do Orion Memory, desde que sejam mantidos integralmente, sem alterações,
+    e acompanhados desta licença e da identificação "Orion Memory",
+    "Orion Company" e do link para o repositório oficial:
+    https://github.com/Projeto-OrionOS/Orion-Memory
 
 3. RESTRIÇÕES
-Salvo autorização prévia e expressa, por escrito, do titular dos
-direitos, é proibido:
-- copiar, republicar, redistribuir, sublicenciar, vender ou disponibilizar
-  o código-fonte, o aplicativo ou partes substanciais deles a terceiros;
-- modificar ou adaptar o código-fonte para criar ou divulgar projetos
-  derivados;
-- utilizar os nomes, logotipos e demais elementos de identidade do Orion
-  Memory ou da Orion Company de maneira que sugira autorização ou vínculo
-  inexistente;
-- remover avisos de autoria, titularidade ou direitos autorais.
+Sem autorização prévia e expressa por escrito do titular dos direitos,
+NÃO é permitido:
+(a) vender o aplicativo, cobrar pelo seu download, acesso, licença
+    ou redistribuição, ou comercializá-lo como parte de outro produto;
+(b) distribuir o aplicativo como se fosse de autoria própria, remover
+    créditos, alterar o nome do fabricante ou apresentá-lo como produto
+    de outra empresa ou pessoa;
+(c) adulterar o instalador, os executáveis ou os pacotes oficiais,
+    inclusive para adicionar código, anúncios, ferramentas indesejadas
+    ou componentes maliciosos;
+(d) copiar, modificar, incorporar, relicenciar, publicar versões
+    derivadas ou redistribuir o código-fonte fora das funcionalidades
+    asseguradas pelos Termos de Serviço do GitHub e pela legislação;
+(e) usar a identidade visual ou as marcas do Orion Memory e da Orion
+    Company para simular endosso, parceria ou distribuição oficial.
 
-4. CÓDIGO-FONTE PUBLICADO
-A disponibilização do código-fonte em um repositório público não torna
-o software de código aberto nem concede licença para modificá-lo,
-redistribuí-lo ou utilizá-lo em outros projetos. As funcionalidades de
-visualização e fork permitidas pelos Termos de Serviço do GitHub não são
-revogadas por este documento.
+A divulgação em canais com publicidade própria, como vídeos de
+análise ou tutoriais, não constitui por si só venda do programa, desde
+que o acesso ao Orion Memory permaneça gratuito e a autoria seja
+identificada corretamente.
 
-5. DIREITOS LEGAIS E COMPONENTES DE TERCEIROS
-Nada neste documento restringe direitos que a legislação aplicável
-assegure independentemente de autorização, nem substitui os termos
-de licença de componentes pertencentes a terceiros.
+4. CÓDIGO-FONTE PÚBLICO
+O acesso público ao repositório não concede uma licença de código
+aberto. A visualização e as funcionalidades de fork dentro do GitHub
+continuam sujeitas aos Termos de Serviço da plataforma. Para quaisquer
+direitos adicionais sobre o código, é necessário obter autorização
+por escrito do titular.
+
+5. DIREITOS LEGAIS E DE TERCEIROS
+Esta licença não limita direitos garantidos por lei nem substitui
+licenças de componentes de terceiros. Cada parte continua sujeita aos
+direitos e às obrigações legais aplicáveis.
 
 6. AUSÊNCIA DE GARANTIA
-O software é disponibilizado no estado em que se encontra, sem garantias
-adicionais, na máxima extensão permitida pela legislação aplicável.
+Na máxima extensão permitida pela legislação aplicável, o Orion Memory
+é disponibilizado no estado em que se encontra, sem garantias adicionais.
 
-7. AUTORIZAÇÕES
-Para solicitar permissão de reutilização, redistribuição, modificação
-ou uso comercial do código-fonte, entre em contato com os responsáveis
-pelo repositório oficial e obtenha autorização expressa por escrito.
+7. PERMISSÕES ADICIONAIS
+Pedidos para comercialização, modificações ou incorporação do código
+em outros projetos devem ser encaminhados aos responsáveis pelo
+repositório oficial e dependem de autorização expressa por escrito.
 
-Esta licença não é uma licença de software livre ou de código aberto.
+Esta é uma licença proprietária que permite divulgação e
+compartilhamento gratuito de binários oficiais sem alteração.
+Não é uma licença de software livre ou código aberto.
