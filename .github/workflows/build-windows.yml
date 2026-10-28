@@ -66,7 +66,10 @@ jobs:
 
       - name: Compilar com Zig 0.15.2 e executar autotestes
         shell: pwsh
-        run: .\scripts\Build-Native.ps1 -NoDownload -Runtime win-x64
+        run: |
+          $zigPath = (Get-Command zig -ErrorAction Stop).Source
+          Write-Host "Compilador Zig: $zigPath"
+          .\scripts\Build-Native.ps1 -ZigPath $zigPath -NoDownload -Runtime win-x64
 
       - name: Conferir resultado
         shell: pwsh
