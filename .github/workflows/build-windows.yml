@@ -53,9 +53,20 @@ jobs:
           python Tests/Native/revisao_qualidade.py
           if ($LASTEXITCODE -ne 0) { throw "Verificacao estatica falhou." }
 
+      - name: Preparar Zig 0.15.2
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
+        with:
+          version: 0.15.2
+
+      - name: Verificar Zig instalado
+        shell: pwsh
+        run: |
+          $detected = (zig version).Trim()
+          if ($detected -ne "0.15.2") { throw "Versao Zig incorreta: $detected" }
+
       - name: Compilar com Zig 0.15.2 e executar autotestes
         shell: pwsh
-        run: .\scripts\Build-Native.ps1 -InstallZig -Runtime win-x64
+        run: .\scripts\Build-Native.ps1 -NoDownload -Runtime win-x64
 
       - name: Conferir resultado
         shell: pwsh
