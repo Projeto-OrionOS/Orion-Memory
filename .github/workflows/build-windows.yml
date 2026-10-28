@@ -1,0 +1,54 @@
+name: Orion Memory | Build Windows x64
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "NativeHost/**"
+      - "Assets/**"
+      - "Languages/**"
+      - "Languages.json"
+      - "Tests/Native/**"
+      - "Build-Native.ps1"
+      - ".github/workflows/build-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compilar e testar (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Obter código-fonte
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validar arquivos do aplicativo
+        shell: pwsh
+        run: |
+          $required = @("NativeHost/host.c", "NativeHost/host.rc", "Build-Native.ps1", "Languages.json")
+          foreach ($path in $required) {
+            if (!(Test-Path -LiteralPath $path)) {
+              throw "Código-fonte incompleto: falta $path"
+            }
+          }
+          python Tests/Native/revisao_qualidade.py
+
+      - name: Compilar com Zig 0.15.2 e executar autotestes
+        shell: pwsh
+        run: ./Build-Native.ps1 -InstallZig -Runtime win-x64
+
+      - name: Publicar artefato portátil
+        uses: actions/upload-artifact@v4
+        with:
+          name: OrionMemory-v1.0.0-win-x64
+          path: dist/OrionMemory_v1.0.0_win-x64.zip
+          if-no-files-found: error
+          retention-days: 30

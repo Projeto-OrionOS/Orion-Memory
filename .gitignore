@@ -1,0 +1,42 @@
+# Builds e artefatos gerados
+dist/
+bin/
+obj/
+out/
+build/
+qa/
+*.exe
+*.dll
+*.pdb
+*.obj
+*.o
+*.lib
+*.a
+*.zip
+
+# Configurações locais / arquivos temporários
+settings.json
+settings.local.json
+*.log
+*.tmp
+*.bak
+*.old
+*.cache
+*.user
+*.suo
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+.vs/
+.vscode/
+.idea/
+
+# Relatórios de testes locais
+Tests/Native/Reports/
+
+# Compilador Zig opcional
+tools/zig/
+.zig-cache/
+zig-out/
