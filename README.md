@@ -12,6 +12,10 @@ Acesse **[Releases — Orion Memory](https://github.com/Projeto-OrionOS/Orion-Me
 
 ![Orion Memory v1.0.0 — tela principal](Assets/OrionMemory-Interface.png)
 
+## Compartilhe o Orion Memory
+
+O **Orion Memory é gratuito**. Você pode divulgar o projeto, criar vídeos e tutoriais, compartilhar o link oficial e redistribuir gratuitamente os pacotes oficiais **sem modificá-los**, mantendo os créditos de **Orion Company** e a [licença](LICENSE). Não é permitido vender o aplicativo, cobrar pelo download ou apresentá-lo como se fosse de outra autoria.
+
 ## Funcionalidades
 
 - Monitoramento de memória física, memória comprometida e cache.
@@ -71,6 +75,6 @@ Algumas operações avançadas exigem privilégios do Windows. Verifique a orige
 
 ## Licença e direitos autorais
 
-**© 2026 Orion Company — Todos os direitos reservados.** O Orion Memory está sujeito à [licença proprietária](LICENSE). As versões oficiais compiladas podem ser utilizadas nos termos da licença; o código-fonte não pode ser copiado para outros projetos, modificado ou redistribuído sem autorização por escrito, ressalvadas as permissões e exceções previstas em lei e nos termos da plataforma.
+**© 2026 Orion Company — Todos os direitos reservados.** A [licença proprietária](LICENSE) permite o uso, a divulgação e a redistribuição gratuita de pacotes oficiais não modificados, com créditos e licença preservados. Proíbe a revenda e a falsa atribuição de autoria. O código-fonte não pode ser reutilizado, modificado ou redistribuído em outros projetos sem autorização, ressalvados os direitos previstos em lei e nos termos do GitHub.
 
-A publicação do repositório não constitui uma licença de código aberto.
+Este repositório público não equivale a uma licença de código aberto.
