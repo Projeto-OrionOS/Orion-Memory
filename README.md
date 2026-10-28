@@ -8,6 +8,10 @@ O Orion Memory monitora o uso de RAM, a memória comprometida e o cache do siste
 
 Acesse **[Releases — Orion Memory](https://github.com/Projeto-OrionOS/Orion-Memory/releases)** para baixar o pacote para Windows x64, que inclui o aplicativo e os arquivos de idiomas.
 
+## Interface
+
+![Orion Memory v1.0.0 — tela principal](Assets/OrionMemory-Interface.png)
+
 ## Funcionalidades
 
 - Monitoramento de memória física, memória comprometida e cache.
