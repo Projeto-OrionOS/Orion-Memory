@@ -12,7 +12,6 @@ on:
       - "app.manifest"
       - "Tests/Native/**"
       - "scripts/Build-Native.ps1"
-      - "Compilar.bat"
       - ".github/workflows/build-windows.yml"
   pull_request:
     branches: [main]
@@ -41,7 +40,6 @@ jobs:
             "NativeHost/host.c",
             "NativeHost/host.rc",
             "scripts/Build-Native.ps1",
-            "Compilar.bat",
             "Languages.json",
             "Tests/Native/revisao_qualidade.py"
           )
