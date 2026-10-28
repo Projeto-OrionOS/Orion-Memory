@@ -21,11 +21,30 @@ function Test-Zig([string]$Candidate) {
         $Candidate = Join-Path $Candidate 'zig.exe'
     }
     if (-not (Test-Path -LiteralPath $Candidate -PathType Leaf)) { return $null }
+    $process = $null
     try {
         $resolved = (Resolve-Path -LiteralPath $Candidate).Path
-        $version = (& $resolved version 2>$null | Select-Object -First 1)
-        if ($LASTEXITCODE -eq 0 -and "$version".Trim() -eq $zigVersion) { return $resolved }
-    } catch { }
+        $process = [System.Diagnostics.Process]::new()
+        $process.StartInfo.FileName = $resolved
+        $process.StartInfo.Arguments = 'version'
+        $process.StartInfo.UseShellExecute = $false
+        $process.StartInfo.CreateNoWindow = $true
+        $process.StartInfo.RedirectStandardOutput = $true
+        $process.StartInfo.RedirectStandardError = $true
+        if (-not $process.Start()) { return $null }
+        $reported = $process.StandardOutput.ReadToEnd().Trim()
+        $errors = $process.StandardError.ReadToEnd().Trim()
+        if (-not $process.WaitForExit(10000)) {
+            $process.Kill()
+            throw 'Tempo limite ao verificar o compilador.'
+        }
+        if ($process.ExitCode -eq 0 -and $reported -eq $zigVersion) { return $resolved }
+        Write-Verbose "Compilador rejeitado: $resolved (codigo $($process.ExitCode); versao: $reported; erro: $errors)"
+    } catch {
+        Write-Verbose "Nao foi possivel validar o compilador: $($_.Exception.Message)"
+    } finally {
+        if ($process) { $process.Dispose() }
+    }
     return $null
 }
 
