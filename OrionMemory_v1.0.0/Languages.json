@@ -1,0 +1,152 @@
+[
+  {
+    "Code": "pt-BR",
+    "Name": "Português (Brasil)",
+    "Country": "Brasil"
+  },
+  {
+    "Code": "en-US",
+    "Name": "English",
+    "Country": "Estados Unidos"
+  },
+  {
+    "Code": "es-ES",
+    "Name": "Español",
+    "Country": "Espanha"
+  },
+  {
+    "Code": "ar-SA",
+    "Name": "العربية",
+    "Country": "Arábia Saudita"
+  },
+  {
+    "Code": "bg-BG",
+    "Name": "Български",
+    "Country": "Bulgária"
+  },
+  {
+    "Code": "ca-ES",
+    "Name": "Català",
+    "Country": "Espanha"
+  },
+  {
+    "Code": "zh-CN",
+    "Name": "简体中文",
+    "Country": "China"
+  },
+  {
+    "Code": "zh-TW",
+    "Name": "繁體中文",
+    "Country": "Taiwan"
+  },
+  {
+    "Code": "cs-CZ",
+    "Name": "Čeština",
+    "Country": "Tchéquia"
+  },
+  {
+    "Code": "nl-NL",
+    "Name": "Nederlands",
+    "Country": "Países Baixos"
+  },
+  {
+    "Code": "fr-FR",
+    "Name": "Français",
+    "Country": "França"
+  },
+  {
+    "Code": "de-DE",
+    "Name": "Deutsch",
+    "Country": "Alemanha"
+  },
+  {
+    "Code": "he-IL",
+    "Name": "עברית",
+    "Country": "Israel"
+  },
+  {
+    "Code": "hu-HU",
+    "Name": "Magyar",
+    "Country": "Hungria"
+  },
+  {
+    "Code": "id-ID",
+    "Name": "Bahasa Indonesia",
+    "Country": "Indonésia"
+  },
+  {
+    "Code": "it-IT",
+    "Name": "Italiano",
+    "Country": "Itália"
+  },
+  {
+    "Code": "ja-JP",
+    "Name": "日本語",
+    "Country": "Japão"
+  },
+  {
+    "Code": "kk-KZ",
+    "Name": "Қазақша",
+    "Country": "Cazaquistão"
+  },
+  {
+    "Code": "ko-KR",
+    "Name": "한국어",
+    "Country": "Coreia do Sul"
+  },
+  {
+    "Code": "fa-IR",
+    "Name": "فارسی",
+    "Country": "Irã"
+  },
+  {
+    "Code": "pl-PL",
+    "Name": "Polski",
+    "Country": "Polônia"
+  },
+  {
+    "Code": "pt-PT",
+    "Name": "Português (Portugal)",
+    "Country": "Portugal"
+  },
+  {
+    "Code": "ro-RO",
+    "Name": "Română",
+    "Country": "Romênia"
+  },
+  {
+    "Code": "ru-RU",
+    "Name": "Русский",
+    "Country": "Rússia"
+  },
+  {
+    "Code": "sr-Cyrl-RS",
+    "Name": "Српски",
+    "Country": "Sérvia"
+  },
+  {
+    "Code": "sk-SK",
+    "Name": "Slovenčina",
+    "Country": "Eslováquia"
+  },
+  {
+    "Code": "sv-SE",
+    "Name": "Svenska",
+    "Country": "Suécia"
+  },
+  {
+    "Code": "tr-TR",
+    "Name": "Türkçe",
+    "Country": "Turquia"
+  },
+  {
+    "Code": "uk-UA",
+    "Name": "Українська",
+    "Country": "Ucrânia"
+  },
+  {
+    "Code": "vi-VN",
+    "Name": "Tiếng Việt",
+    "Country": "Vietnã"
+  }
+]
