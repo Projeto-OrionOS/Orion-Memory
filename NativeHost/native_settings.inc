@@ -271,13 +271,63 @@ static void ns_layout(void){
 static void ns_label(HDC dc,const char *label,int x,int y,int w,int h,HFONT font,COLORREF color,UINT flags){wchar_t text[768];translate(label,text,768);RECT r={ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,x+w),ui_scale(g_ns_hwnd,y+h)};ui_text_draw(dc,r,text,font,color,flags|DT_NOPREFIX);}
 static void ns_card(HDC dc,int y,int h,const char *title){RECT client;GetClientRect(g_ns_hwnd,&client);RECT r={ui_scale(g_ns_hwnd,194),ui_scale(g_ns_hwnd,y),client.right-ui_scale(g_ns_hwnd,14),ui_scale(g_ns_hwnd,y+h)};ui_round(dc,r,ui_surface(),ui_scale(g_ns_hwnd,9));ns_label(dc,title,210,y+12,MulDiv(client.right,96,(int)GetDpiForWindow(g_ns_hwnd))-240,20,g_ns_bold,ui_text(),DT_SINGLELINE);}
 static void ns_paint(HWND hwnd,HDC dc){RECT client;GetClientRect(hwnd,&client);HBRUSH bg=CreateSolidBrush(ui_background());FillRect(dc,&client,bg);DeleteObject(bg);RECT nav={ui_scale(hwnd,8),ui_scale(hwnd,8),ui_scale(hwnd,184),client.bottom-ui_scale(hwnd,8)};ui_round(dc,nav,ui_surface(),ui_scale(hwnd,9));int w=MulDiv(client.right,96,(int)GetDpiForWindow(hwnd));
- if(g_ns_page==0){ns_card(dc,22,322,"Configuração principal");ns_card(dc,366,84,"Idioma");ns_label(dc,"Idioma do aplicativo:",210,399,122,25,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);if(!g_ns_preview.skip_uac||g_ns_authorized)ns_label(dc,"Requer uma autorização do Windows ao ativar ou desativar. Aplicado na próxima abertura.",238,210,w-270,27,g_ns_font,ui_muted(),DT_WORDBREAK);}
- else if(g_ns_page==1){ns_card(dc,22,208,"Partes da memória para limpar");ns_card(dc,242,112,"Limpeza sob demanda");ns_card(dc,366,78,"Atalho de teclado (global)");ns_label(dc,"A limpeza é manual. Selecione as regiões e use Liberar memória.",210,280,w-250,55,g_ns_font,ui_muted(),DT_WORDBREAK);ns_label(dc,"Operações agressivas podem afetar o desempenho temporariamente.",198,450,w-216,29,g_ns_font,ui_muted(),DT_WORDBREAK);}
- else if(g_ns_page==2){ns_card(dc,22,184,"Estilo do ícone de notificação");ns_label(dc,"Fonte:",210,69,47,28,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);ns_label(dc,"pt",661+(w-700),70,20,26,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER);ns_card(dc,222,226,"Cores do ícone");ns_label(dc,"Personalizar cor (R / G / B)",456,244,w-474,18,g_ns_font,ui_muted(),DT_SINGLELINE);Settings saved=g_settings;g_settings.text_color=g_ns_colors[0];g_settings.background_color=g_ns_colors[1];g_settings.warning_color=g_ns_colors[2];g_settings.danger_color=g_ns_colors[3];int usage=g_ns_color_role==2?g_settings.warning:g_ns_color_role==3?g_settings.danger:min(76,g_settings.warning-1);HICON icon=render_icon(usage,ui_scale(hwnd,30));g_settings=saved;int px=ui_scale(hwnd,w-134),py=ui_scale(hwnd,394);RECT sample={px-ui_scale(hwnd,5),py-ui_scale(hwnd,4),px+ui_scale(hwnd,35),py+ui_scale(hwnd,35)};ui_round(dc,sample,ui_background(),ui_scale(hwnd,6));if(icon){DrawIconEx(dc,px,py,icon,ui_scale(hwnd,30),ui_scale(hwnd,30),0,NULL,DI_NORMAL);DestroyIcon(icon);}wchar_t caption[40];swprintf(caption,40,L"%d%%",usage);RECT pr={px+ui_scale(hwnd,40),py,client.right-ui_scale(hwnd,20),py+ui_scale(hwnd,30)};ui_text_draw(dc,pr,caption,g_ns_font,ui_muted(),DT_VCENTER|DT_SINGLELINE);}
- else if(g_ns_page==3){ns_card(dc,22,132,"Indicação de cores");ns_label(dc,"Acionar o nível de alerta em: (%)",210,73,w-340,26,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);ns_label(dc,"Acionar o nível de perigo em: (%)",210,111,w-340,26,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);ns_card(dc,174,113,"Comandos do mouse");ns_label(dc,"Clique simples:",210,207,230,28,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);ns_label(dc,"Clique duplo:",210,247,230,28,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);ns_card(dc,310,110,"Notificações");}
- else{ns_card(dc,22,212,"Comportamento");ns_card(dc,260,77,"Atualização");ns_label(dc,"Atualizar métricas a cada: (s)",210,289,w-340,27,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);ns_label(dc,"Operações agressivas podem aumentar leituras do disco e afetar o desempenho.",238,200,w-272,29,g_ns_font,ui_muted(),DT_WORDBREAK);ns_label(dc,"Logs: %LOCALAPPDATA%\\OrionOS\\OrionMemory\\cleaning.log.",198,355,w-216,52,g_ns_font,ui_muted(),DT_WORDBREAK);}
+ if(g_ns_page==0){
+    ns_card(dc,16,125,"Inicialização");
+    ns_card(dc,149,128,"Janela e aparência");
+    ns_card(dc,285,120,"Segurança");
+    ns_card(dc,413,64,"Idioma");
+    ns_label(dc,"Idioma do aplicativo:",210,447,122,26,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+ }
+ else if(g_ns_page==1){
+    ns_card(dc,22,219,"Áreas incluídas na limpeza");
+    ns_card(dc,251,93,"Informações sobre a limpeza");
+    ns_card(dc,357,79,"Atalho global");
+    const char *hint=g_ns_region_hint>=0&&g_ns_region_hint<9?ns_region_details[g_ns_region_hint]:"Escolha as regiões para limpar. Operações avançadas podem exigir autorização do Windows.";
+    ns_label(dc,hint,210,286,w-252,45,g_ns_font,ui_muted(),DT_WORDBREAK);
+    ns_label(dc,"A limpeza é manual e não aumenta a RAM física do computador.",205,451,w-224,26,g_ns_font,ui_muted(),DT_WORDBREAK);
+ }
+ else if(g_ns_page==2){
+    ns_card(dc,22,184,"Estilo do ícone");
+    ns_label(dc,"Fonte:",210,69,47,28,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+    ns_label(dc,"pt",661+(w-700),70,20,26,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER);
+    ns_card(dc,222,226,"Paleta e personalização");
+    ns_label(dc,"Personalizar cor (R / G / B)",456,244,w-474,18,g_ns_font,ui_muted(),DT_SINGLELINE);
+    Settings saved=g_settings;g_settings=g_ns_preview;
+    g_settings.text_color=g_ns_colors[0];g_settings.background_color=g_ns_colors[1];
+    g_settings.warning_color=g_ns_colors[2];g_settings.danger_color=g_ns_colors[3];
+    int usage=g_ns_color_role==2?g_settings.warning:g_ns_color_role==3?g_settings.danger:min(76,g_settings.warning-1);
+    g_settings.dark=1;HICON dark_icon=render_icon(usage,ui_scale(hwnd,33));
+    g_settings.dark=0;HICON light_icon=render_icon(usage,ui_scale(hwnd,33));
+    g_settings=saved;
+    int dx=ui_scale(hwnd,w-154),lx=ui_scale(hwnd,w-96),py=ui_scale(hwnd,404);
+    RECT dark_bg={dx-ui_scale(hwnd,4),py-ui_scale(hwnd,4),dx+ui_scale(hwnd,37),py+ui_scale(hwnd,37)};
+    RECT light_bg={lx-ui_scale(hwnd,4),py-ui_scale(hwnd,4),lx+ui_scale(hwnd,37),py+ui_scale(hwnd,37)};
+    ui_round(dc,dark_bg,RGB(27,29,35),ui_scale(hwnd,6));
+    ui_round(dc,light_bg,RGB(238,241,245),ui_scale(hwnd,6));
+    if(dark_icon){DrawIconEx(dc,dx,py,dark_icon,ui_scale(hwnd,33),ui_scale(hwnd,33),0,NULL,DI_NORMAL);DestroyIcon(dark_icon);}
+    if(light_icon){DrawIconEx(dc,lx,py,light_icon,ui_scale(hwnd,33),ui_scale(hwnd,33),0,NULL,DI_NORMAL);DestroyIcon(light_icon);}
+    ns_label(dc,"Escuro",w-166,386,52,18,g_ns_font,ui_muted(),DT_CENTER|DT_SINGLELINE);
+    ns_label(dc,"Claro",w-108,386,52,18,g_ns_font,ui_muted(),DT_CENTER|DT_SINGLELINE);
+ }
+ else if(g_ns_page==3){
+    ns_card(dc,22,132,"Níveis de utilização");
+    ns_label(dc,"Acionar o nível de alerta em: (%)",210,73,w-340,26,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
+    ns_label(dc,"Acionar o nível de perigo em: (%)",210,111,w-340,26,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
+    ns_card(dc,174,113,"Interações com a bandeja");
+    ns_label(dc,"Clique simples:",210,207,230,28,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
+    ns_label(dc,"Clique duplo:",210,247,230,28,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
+    ns_card(dc,310,110,"Notificações");
+ }
+ else{
+    ns_card(dc,22,148,"Diagnóstico e segurança");
+    ns_card(dc,181,70,"Janela principal");
+    ns_card(dc,264,86,"Frequência de atualização");
+    ns_label(dc,"Atualizar métricas a cada: (s)",210,305,w-340,27,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
+    ns_label(dc,"Operações agressivas podem aumentar a atividade de disco.",205,366,w-228,28,g_ns_font,ui_muted(),DT_WORDBREAK);
+    ns_label(dc,"Logs em %LOCALAPPDATA%\\OrionOS\\OrionMemory.",205,404,w-228,42,g_ns_font,ui_muted(),DT_WORDBREAK);
+ }
  for(int i=0;i<g_ns_count;++i){NSField *f=&g_ns_fields[i];if(f->page!=g_ns_page||f->region>=0||(f->kind!=NS_COLOR_EDIT&&f->kind!=NS_HOTKEY))continue;RECT r;GetWindowRect(f->hwnd,&r);MapWindowPoints(NULL,hwnd,(POINT*)&r,2);InflateRect(&r,ui_scale(hwnd,7),ui_scale(hwnd,3));ui_round_border(dc,r,ui_surface(),GetFocus()==f->hwnd?ui_focus_outline():ui_outline(),ui_scale(hwnd,5));}
- RECT status={ui_scale(hwnd,198),client.bottom-ui_scale(hwnd,39),client.right-ui_scale(hwnd,202),client.bottom-ui_scale(hwnd,11)};ui_text_draw(dc,status,g_ns_status,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);}
+ RECT status={ui_scale(hwnd,18),client.bottom-ui_scale(hwnd,42),ui_scale(hwnd,177),client.bottom-ui_scale(hwnd,11)};ui_text_draw(dc,status,g_ns_status,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);}
 static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw->hDC;RECT r=draw->rcItem;ui_fill(dc,r,(id==NS_CLOSE||id==NS_DEFAULTS||id==NS_APPLY)?ui_background():ui_surface());NSField *f=ns_field(id);wchar_t text[320];GetWindowTextW(draw->hwndItem,text,320);
  if(draw->CtlType==ODT_COMBOBOX){int selected=(draw->itemState&ODS_SELECTED)!=0;ui_round(dc,r,selected?ui_selection_bg():ui_surface(),ui_scale(g_ns_hwnd,4));if(draw->itemID!=(UINT)-1)SendMessageW(draw->hwndItem,CB_GETLBTEXT,draw->itemID,(LPARAM)text);r.left+=ui_scale(g_ns_hwnd,8);ui_text_draw(dc,r,text,g_ns_font,selected?ui_selection_fg():ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);return TRUE;}
  if(id>=NS_NAV&&id<NS_NAV+5){int active=id==NS_NAV+g_ns_page;ui_round(dc,r,active?ui_selection_bg():GetPropW(draw->hwndItem,L"Orion.Hover")?(g_settings.dark?RGB(50,50,50):RGB(246,246,246)):ui_surface(),ui_scale(g_ns_hwnd,5));if(active){RECT marker={r.left+ui_scale(g_ns_hwnd,3),r.top+ui_scale(g_ns_hwnd,8),r.left+ui_scale(g_ns_hwnd,6),r.bottom-ui_scale(g_ns_hwnd,8)};ui_round(dc,marker,ui_accent(),ui_scale(g_ns_hwnd,2));}r.left+=ui_scale(g_ns_hwnd,12);ui_text_draw(dc,r,text,g_ns_font,ui_selection_fg(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);return TRUE;}
