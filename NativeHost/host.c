@@ -48,7 +48,8 @@
 
 static const char *region_keys[] = {"GlobalWorkingSets", "SystemFileCache", "ModifiedPageList", "FullStandby", "LowPriorityStandby", "ModifiedFileCache", "RegistryCache", "CombineMemory", "BackgroundWorkingSets"};
 static const char *region_labels[] = {"Conjunto de trabalho (todos os processos)", "Cache de arquivos do sistema", "Lista de páginas modificadas *", "Lista de espera completa *", "Lista de espera de baixa prioridade", "Cache de arquivos modificados", "Cache do Registro (Windows 8.1+)", "Combinação de páginas de memória (Windows 10+)", "Conjuntos de trabalho em segundo plano"};
-static const int default_regions[] = {1,1,0,0,1,1,1,1,1};
+/* New installations start conservatively: no automatic cache purges or wide process trims. */
+static const int default_regions[] = {0,0,0,0,1,0,0,0,0};
 
 /* Small validating JSON reader.  Tokens retain offsets into the original UTF-8
    document so an edit preserves unknown properties and their original values. */
@@ -220,7 +221,7 @@ static const wchar_t *windows_ui_locale(void){
   for(DWORD i=0;i<count && at<1024 && languages[at];++i){
    const wchar_t *result=mapped_locale(languages+at);
    if(result)return result;
-   at+=wcslen(languages+at)+1;
+   at+=wlen(languages+at)+1;
   }
  }
  /* Last resort when the user preferred UI-language API is unavailable. */
