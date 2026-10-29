@@ -1,7 +1,7 @@
 /* Shared light GDI primitives. Returned fonts belong to the caller. */
 static int ui_scale(HWND window,int value){UINT dpi=window?GetDpiForWindow(window):96;return MulDiv(value,(int)(dpi?dpi:96),96);}
 static HFONT ui_font(HWND window,int pixels,int weight){return CreateFontW(-ui_scale(window,pixels),0,0,0,weight,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_TT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");}
-static COLORREF ui_background(void){return g_settings.dark?RGB(31,31,31):RGB(243,243,243);}
+static COLORREF ui_background(void){return g_settings.dark?RGB(32,32,32):RGB(243,243,243);}
 static COLORREF ui_surface(void){return g_settings.dark?RGB(42,42,42):RGB(255,255,255);}
 static COLORREF ui_text(void){return g_settings.dark?RGB(245,245,245):RGB(26,26,26);}
 static COLORREF ui_muted(void){return g_settings.dark?RGB(187,187,187):RGB(85,85,85);}
