@@ -26,8 +26,8 @@
 #define NS_NUMBER_DOWN 5450
 #define NS_COLOR_TIMER 91
 #define NS_REFRESH (WM_APP+72)
-#define NS_REGION_ROW 32
-#define NS_REGION_HEIGHT 30
+#define NS_REGION_ROW 34
+#define NS_REGION_HEIGHT 33
 #define NS_REGION_CONTENT (9*NS_REGION_ROW)
 enum { NS_CHECK=1,NS_EDIT,NS_COMBO,NS_COLOR,NS_COLOR_EDIT,NS_NUMBER,NS_HOTKEY };
 #define NS_STRETCH 1
@@ -40,10 +40,19 @@ static HWND g_ns_hwnd,g_ns_region;static int g_ns_authorized;
 static char *g_ns_draft,*g_ns_baseline;
 static Settings g_ns_preview;
 static int g_ns_region_hint=-1;
+/* 5 independently scrollable content panes; title/menu/footer remain stationary. */
+static int g_ns_page; /* tentative declaration; defined alongside the settings globals. */
+static int g_ns_page_scroll[5]={0,0,0,0,0};
+static const int g_ns_page_bottom[5]={756,831,814,816,806};
+static int ns_view_bottom(void){if(!g_ns_hwnd)return 660;RECT r;GetClientRect(g_ns_hwnd,&r);return MulDiv(r.bottom,96,(int)GetDpiForWindow(g_ns_hwnd))-64;}
+static int ns_scroll_max(void){return max(0,g_ns_page_bottom[g_ns_page]-ns_view_bottom()+7);}
+static int ns_scroll(void){int maximum=ns_scroll_max();g_ns_page_scroll[g_ns_page]=clampi(g_ns_page_scroll[g_ns_page],0,maximum);return g_ns_page_scroll[g_ns_page];}
+static int ns_page_visible(int y,int h){int bot=ns_view_bottom(),scroll=ns_scroll();return y-scroll>=12&&y+h-scroll<=bot;}
+
 /* Classificacao relativa de impacto (nao e promessa de ganho de desempenho).
    0: menor impacto, 1: cautela, 2: avancado, com possivel congelamento aparente. */
 static const int ns_region_risk[9]={1,1,2,2,0,2,2,1,1};
-static const char *ns_risk_names[3]={"MENOR IMPACTO","ATENÇÃO","AVANÇADO"};
+static const char *ns_risk_names[3]={"RECOMENDADO · MENOR IMPACTO","ATENÇÃO","AVANÇADO"};
 static const char *ns_risk_long[3]={
     "Impacto geralmente menor; ainda pode gerar recarregamento de dados.",
     "Pode aumentar atividade de disco, CPU ou atrasar alguns aplicativos.",
@@ -76,6 +85,11 @@ static void ns_nav_caption(int page,wchar_t *out,int capacity){
     /* Localize with existing 30-language keys. Brazilian Portuguese uses shorter captions. */
     translate(!wcscmp(g_settings.language,L"pt-BR")?ns_pages[page]:ns_pages_previous[page],out,capacity);
 }
+static const char *ns_region_short[]={
+ "Pode recarregar aplicativos", "Aumenta leituras do disco", "Pode provocar gravações",
+ "Reduz caches de espera", "Menor impacto relativo", "Pode elevar uso de disco",
+ "Reconstrói cache do Registro", "Consome CPU temporariamente", "Pode recarregar processos"
+};
 static const char *ns_region_details[]={
     "Reduz a RAM residente de processos. Aplicativos podem recarregar dados e ficar lentos.",
     "Diminui o cache de arquivos do Windows. Pode elevar leituras do disco.",
@@ -98,13 +112,13 @@ static int ns_save(const char *key,const char *raw){
     Json j;memset(&j,0,sizeof(j));int valid=json_init(&j,next,strlen(next));json_free(&j);
     if(!valid){free(next);ns_status("Configuração inválida.");return 0;}
     free(g_ns_draft);g_ns_draft=next;ns_preview_refresh();
-    ns_status(ns_is_dirty()?"Alterações pendentes":"Tudo salvo");
+    ns_status(ns_is_dirty()?"Alterações pendentes — clique em Aplicar":"Nenhuma alteração pendente");
     ns_refresh_fields();return 1;
 }
 static int ns_save_number(NSField *field){wchar_t text[48],*end;GetWindowTextW(field->hwnd,text,48);int previous=ns_number(field->key,field->fallback);long value=wcstol(text,&end,10);if(end==text||*end)value=previous;value=clampi((int)value,field->min,field->max);if(!strcmp(field->key,"WarningPercent")&&value>=g_ns_preview.danger)value=g_ns_preview.danger-1;if(!strcmp(field->key,"DangerPercent")&&value<=g_ns_preview.warning)value=g_ns_preview.warning+1;swprintf(text,48,L"%ld",value);int updating=g_ns_updating;g_ns_updating=1;SetWindowTextW(field->hwnd,text);g_ns_updating=updating;if(previous==value)return 1;char raw[32];snprintf(raw,sizeof(raw),"%ld",value);return ns_save(field->key,raw);}
 static int ns_startup(int enabled){if(g_test_mode)return 1;HKEY key;LONG result=RegCreateKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,NULL,0,KEY_SET_VALUE,NULL,&key,NULL);if(result!=ERROR_SUCCESS)return 0;if(enabled){wchar_t path[MAX_PATH],command[MAX_PATH+40];GetModuleFileNameW(NULL,path,MAX_PATH);swprintf(command,MAX_PATH+40,L"\"%ls\"%ls",path,ns_bool("StartMinimized",0)?L" --minimized":L"");result=RegSetValueExW(key,L"OrionMemory",0,REG_SZ,(const BYTE*)command,(DWORD)((wcslen(command)+1)*sizeof(wchar_t)));}else{result=RegDeleteValueW(key,L"OrionMemory");if(result==ERROR_FILE_NOT_FOUND)result=ERROR_SUCCESS;}RegCloseKey(key);return result==ERROR_SUCCESS;}
 static void ns_invalidate(int x,int y,int w,int h){if(!g_ns_hwnd)return;RECT r={ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,x+w),ui_scale(g_ns_hwnd,y+h)};InvalidateRect(g_ns_hwnd,&r,FALSE);}
-static void ns_status(const char *text){wchar_t next[320];translate(text,next,320);if(!wcscmp(next,g_ns_status))return;copyw(g_ns_status,320,next);if(g_ns_hwnd){RECT r;GetClientRect(g_ns_hwnd,&r);r.left=ui_scale(g_ns_hwnd,205);r.top=r.bottom-ui_scale(g_ns_hwnd,83);r.right-=ui_scale(g_ns_hwnd,16);InvalidateRect(g_ns_hwnd,&r,FALSE);}}
+static void ns_status(const char *text){wchar_t next[320];translate(text,next,320);if(!wcscmp(next,g_ns_status))return;copyw(g_ns_status,320,next);if(g_ns_hwnd){RECT r;GetClientRect(g_ns_hwnd,&r);r.left=ui_scale(g_ns_hwnd,12);r.top=r.bottom-ui_scale(g_ns_hwnd,56);r.right-=ui_scale(g_ns_hwnd,395);InvalidateRect(g_ns_hwnd,&r,FALSE);}}
 static int ns_object_find(Json *j,int object,const char *key){char name[128];for(int n=object+1;n<j->tokens[object].next;){int value=n+1;if(json_text(j,n,name,sizeof(name))&&!strcmp(name,key))return value;n=j->tokens[value].next;}return -1;}
 static void ns_token_wide(Json *j,int token,wchar_t *to,int cap){char value[768];to[0]=0;if(json_text(j,token,value,sizeof(value)))MultiByteToWideChar(CP_UTF8,0,value,-1,to,cap);}
 static int __cdecl ns_language_order(const void *a,const void *b){const NSLanguage *one=(const NSLanguage*)a,*two=(const NSLanguage*)b;int result=CompareStringEx(L"pt-BR",NORM_IGNORECASE,one->country,-1,two->country,-1,NULL,NULL,0);if(result==CSTR_EQUAL)return wcscmp(one->code,two->code);return result-CSTR_EQUAL;}
@@ -196,42 +210,66 @@ static void ns_set_text(HWND hwnd,const char *utf8){wchar_t text[320];translate(
 static void ns_show(HWND hwnd,int visible){if(((GetWindowLongPtrW(hwnd,GWL_STYLE)&WS_VISIBLE)!=0)!=visible)ShowWindow(hwnd,visible?SW_SHOWNA:SW_HIDE);}
 static void ns_move(HWND hwnd,int x,int y,int w,int h){RECT old;GetWindowRect(hwnd,&old);MapWindowPoints(NULL,GetParent(hwnd),(POINT*)&old,2);x=ui_scale(g_ns_hwnd,x);y=ui_scale(g_ns_hwnd,y);w=ui_scale(g_ns_hwnd,w);h=ui_scale(g_ns_hwnd,h);if(old.left!=x||old.top!=y||old.right-old.left!=w||old.bottom-old.top!=h)SetWindowPos(hwnd,NULL,x,y,w,h,SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOREDRAW);}
 static void ns_language_caption(NSLanguage *language,wchar_t *caption,int capacity){const wchar_t *name=!wcsncmp(language->code,L"pt-",3)?L"Português":language->name;swprintf(caption,capacity,L"%ls — %ls",language->country,name);int cjk=!wcsncmp(language->code,L"zh-",3)||!wcsncmp(language->code,L"ja-",3)||!wcsncmp(language->code,L"ko-",3);if(!cjk)return;HDC dc=GetDC(g_ns_hwnd);HGDIOBJ old=SelectObject(dc,g_ns_font);int missing=ui_missing_glyphs(dc,caption);SelectObject(dc,old);ReleaseDC(g_ns_hwnd,dc);if(missing){if(!wcscmp(language->code,L"zh-CN"))name=L"Chinês (simplificado)";else if(!wcscmp(language->code,L"zh-TW"))name=L"Chinês (tradicional)";else if(!wcsncmp(language->code,L"ja-",3))name=L"Japonês";else name=L"Coreano";swprintf(caption,capacity,L"%ls — %ls",language->country,name);}}
-static void ns_create_fields(void){g_ns_count=0;int y=68;const struct{const char *key,*label;int fallback;} general[]={
- {"AlwaysOnTop","Manter a janela principal sempre na frente",0},{"StartWithWindows","Carregar com o sistema",1},{"StartMinimized","Iniciar minimizado",0},{"ConfirmEveryClean","Confirmar o início da liberação de memória",0},{"SkipUac","Evitar avisos repetidos do UAC (com autorização)",1},{"CloseToTray","Ao fechar, continuar na bandeja",1},{"DarkTheme","Usar tema escuro",1},{"WindowBlur","Usar transparência nas janelas",0}};
-const int general_positions[]={184,51,81,321,351,111,214,244};
-  for(int i=0;i<8;++i)ns_add(NS_FIRST+i,NS_CHECK,0,general[i].key,general[i].label,210,general_positions[i],466,27,NS_STRETCH,general[i].fallback);
- g_ns_authorize=ns_button(g_ns_hwnd,NS_AUTHORIZE,L"",238,378,190,23);ns_set_text(g_ns_authorize,"Configurar autorização");
- g_ns_language_box=ns_add(NS_FIRST+10,NS_COMBO,0,"Language","Idioma",340,447,336,28,NS_STRETCH,0)->hwnd;
- for(int i=0;i<9;++i){NSField *f=ns_add(NS_FIRST+20+i,NS_CHECK,1,region_keys[i],region_labels[i],0,0,440,NS_REGION_HEIGHT,NS_STRETCH,default_regions[i]);f->region=i;SetParent(f->hwnd,g_ns_region);}
- ns_add(NS_FIRST+29,NS_CHECK,1,"EnableHotkey","Liberar memória com estas teclas:",210,497,276,30,NS_STRETCH,1);
- g_ns_hotkey=ns_add(NS_FIRST+30,NS_HOTKEY,1,NULL,"",500,498,176,26,NS_RIGHT,0)->hwnd;
- g_ns_font_box=ns_add(NS_FIRST+40,NS_COMBO,2,"TrayFontFamily","Fonte:",260,67,288,30,NS_STRETCH,0)->hwnd;
- NSField *size=ns_add(NS_FIRST+41,NS_NUMBER,2,"TrayFontSize","Tamanho da fonte do ícone",565,69,70,24,NS_RIGHT,8);size->min=1;size->max=18;g_ns_font_size=size->hwnd;
- const struct{const char *key,*label;int fallback;} style[]={ {"TrayFontBold","Usar negrito",1},{"TrayTransparent","Usar fundo transparente",0},{"TrayBorder","Exibir bordas",0},{"TrayRounded","Exibir cantos arredondados",1},{"TrayColorBackground","Usar a cor do nível como fundo",0},{"TrayAntialias","Usar suavização de bordas",1}};
- for(int i=0;i<6;++i)ns_add(NS_FIRST+42+i,NS_CHECK,2,style[i].key,style[i].label,210+(i%2)*240,110+(i/2)*31,226,28,i%2?NS_RIGHT:0,style[i].fallback);
- const char *color_names[]={"Cor do texto","Cor do fundo","Cor do nível de alerta","Cor do nível de perigo"};
- for(int i=0;i<4;++i)ns_add(NS_COLOR_ROLE+i,NS_COLOR,2,NULL,color_names[i],210,263+i*31,218,29,0,0);
- g_ns_hex=ns_add(NS_FIRST+50,NS_COLOR_EDIT,2,NULL,"Exemplo: #6FB5FF",465,354,133,27,NS_STRETCH,0)->hwnd;SendMessageW(g_ns_hex,EM_SETLIMITTEXT,7,0);
- for(int i=0;i<8;++i)ns_button(g_ns_hwnd,NS_PALETTE+i,L"",210+i*29,397,23,23);
- NSField *warning=ns_add(NS_FIRST+60,NS_NUMBER,3,"WarningPercent","Acionar o nível de alerta em: (%)",590,74,70,25,NS_RIGHT,75);warning->min=1;warning->max=98;
- NSField *danger=ns_add(NS_FIRST+61,NS_NUMBER,3,"DangerPercent","Acionar o nível de perigo em: (%)",590,112,70,25,NS_RIGHT,90);danger->min=2;danger->max=100;
- ns_add(NS_FIRST+62,NS_COMBO,3,"TraySingleClick","Clique simples:",462,206,214,30,NS_STRETCH,0);
- ns_add(NS_FIRST+63,NS_COMBO,3,"TrayDoubleClick","Clique duplo:",462,246,214,30,NS_STRETCH,1);
- ns_add(NS_FIRST+64,NS_CHECK,3,"ShowNotifications","Exibir resultados da liberação de memória",210,348,466,28,NS_STRETCH,1);
- ns_add(NS_FIRST+65,NS_CHECK,3,"NotificationSound","Habilitar sons de notificação",210,380,466,28,NS_STRETCH,1);
- /* Um botão testa a notificação sem executar qualquer limpeza real. */
-  ns_add(NS_FIRST+70,NS_CHECK,4,"DebugLog","Registrar resultados em um log de diagnóstico",210,65,466,28,NS_STRETCH,0);
-  ns_add(NS_FIRST+71,NS_CHECK,4,"ConfirmAggressiveClean","Confirmar antes de operações agressivas",210,99,466,28,NS_STRETCH,1);
-  ns_add(NS_FIRST+72,NS_CHECK,4,"ShowGraph","Exibir gráfico na janela principal",210,216,466,28,NS_STRETCH,0);
- /* Operações automáticas removidas da interface; as nove opções manuais permanecem. */
- NSField *refresh=ns_add(NS_FIRST+73,NS_NUMBER,4,"RefreshSeconds","Atualizar métricas a cada: (s)",590,305,70,25,NS_RIGHT,1);refresh->min=1;refresh->max=5;
-  /* Sem limpeza automática no Orion Memory: apenas operação sob demanda. */
-  /* Numeric arrow hit zones are painted inside each spinner wrapper. */
- const wchar_t *popular[]={L"Segoe UI",L"Arial",L"Calibri",L"Consolas",L"Tahoma",L"Verdana"};for(unsigned i=0;i<sizeof(popular)/sizeof(*popular);++i)SendMessageW(g_ns_font_box,CB_ADDSTRING,0,(LPARAM)popular[i]);
- for(int i=0;i<g_ns_language_count;++i){wchar_t caption[220];ns_language_caption(&g_ns_languages[i],caption,220);SendMessageW(g_ns_language_box,CB_ADDSTRING,0,(LPARAM)caption);}
+static void ns_create_fields(void){
+  g_ns_count=0;
+  const struct{const char *key,*label;int fallback;} general[]={
+    {"AlwaysOnTop","Manter a janela principal sempre na frente",0},
+    {"StartWithWindows","Carregar com o sistema",1},
+    {"StartMinimized","Iniciar minimizado",0},
+    {"ConfirmEveryClean","Confirmar o início da liberação de memória",0},
+    {"SkipUac","Executar operações administrativas com menos solicitações",1},
+    {"CloseToTray","Ao fechar, continuar na bandeja",1},
+    {"DarkTheme","Usar tema escuro",1},
+    {"WindowBlur","Usar transparência nas janelas",0}
+  };
+  const int positions[]={289,91,131,510,550,171,339,379};
+  for(int i=0;i<8;++i)ns_add(NS_FIRST+i,NS_CHECK,0,general[i].key,general[i].label,236,positions[i],650,28,NS_STRETCH,general[i].fallback);
+  g_ns_authorize=ns_button(g_ns_hwnd,NS_AUTHORIZE,L"",720,597,205,28);
+  ns_set_text(g_ns_authorize,"Autorizar Orion Memory");
+  g_ns_language_box=ns_add(NS_FIRST+10,NS_COMBO,0,"Language","Idioma",650,702,278,30,NS_RIGHT,0)->hwnd;
+  for(int i=0;i<9;++i){
+     NSField *f=ns_add(NS_FIRST+20+i,NS_CHECK,1,region_keys[i],region_labels[i],0,0,690,NS_REGION_HEIGHT,NS_STRETCH,default_regions[i]);
+     f->region=i;SetParent(f->hwnd,g_ns_region);
+  }
+  ns_add(NS_FIRST+29,NS_CHECK,1,"EnableHotkey","Usar atalho global",236,782,276,28,0,1);
+  g_ns_hotkey=ns_add(NS_FIRST+30,NS_HOTKEY,1,NULL,"",696,783,225,28,NS_RIGHT,0)->hwnd;
+  g_ns_font_box=ns_add(NS_FIRST+40,NS_COMBO,2,"TrayFontFamily","Fonte",318,111,325,30,0,0)->hwnd;
+  NSField *size=ns_add(NS_FIRST+41,NS_NUMBER,2,"TrayFontSize","Tamanho",702,110,68,26,NS_RIGHT,8);
+  size->min=1;size->max=18;g_ns_font_size=size->hwnd;
+  const struct{const char *key,*label;int fallback;} style[]={
+    {"TrayFontBold","Usar negrito",1},{"TrayTransparent","Usar fundo transparente",0},
+    {"TrayBorder","Exibir bordas",0},{"TrayRounded","Exibir cantos arredondados",1},
+    {"TrayColorBackground","Usar a cor do nível como fundo",0},{"TrayAntialias","Usar suavização de bordas",1}
+  };
+  ns_add(NS_FIRST+42,NS_CHECK,2,style[0].key,style[0].label,824,110,124,28,NS_RIGHT,style[0].fallback);
+  const int ypos[]={0,248,296,296,344,344};
+  const int xpos[]={0,236,236,600,236,600};
+  for(int i=1;i<6;++i)ns_add(NS_FIRST+42+i,NS_CHECK,2,style[i].key,style[i].label,xpos[i],ypos[i],340,28,(i==3||i==5)?NS_RIGHT:0,style[i].fallback);
+  const char *color_names[]={"Cor do texto","Cor do fundo","Cor do nível de alerta","Cor do nível de perigo"};
+  for(int i=0;i<4;++i)ns_add(NS_COLOR_ROLE+i,NS_COLOR,2,NULL,color_names[i],236,478+i*38,260,32,0,0);
+  g_ns_hex=ns_add(NS_FIRST+50,NS_COLOR_EDIT,2,NULL,"Exemplo: #6FB5FF",620,628,217,30,NS_STRETCH,0)->hwnd;
+  SendMessageW(g_ns_hex,EM_SETLIMITTEXT,7,0);
+  for(int i=0;i<8;++i)ns_button(g_ns_hwnd,NS_PALETTE+i,L"",236+i*34,671,27,27);
+  NSField *warning=ns_add(NS_FIRST+60,NS_NUMBER,3,"WarningPercent","Acionar nível de alerta em",672,112,66,25,NS_RIGHT,75);warning->min=1;warning->max=98;
+  NSField *danger=ns_add(NS_FIRST+61,NS_NUMBER,3,"DangerPercent","Acionar nível de perigo em",672,162,66,25,NS_RIGHT,90);danger->min=2;danger->max=100;
+  ns_add(NS_FIRST+62,NS_COMBO,3,"TraySingleClick","Clique simples",638,347,287,29,NS_RIGHT,0);
+  ns_add(NS_FIRST+63,NS_COMBO,3,"TrayDoubleClick","Clique duplo",638,399,287,29,NS_RIGHT,1);
+  ns_add(NS_FIRST+64,NS_CHECK,3,"ShowNotifications","Exibir resultados da liberação de memória",236,550,350,28,0,1);
+  ns_add(NS_FIRST+65,NS_CHECK,3,"NotificationSound","Habilitar sons de notificação",236,610,350,28,0,1);
+  ns_add(NS_FIRST+70,NS_CHECK,4,"DebugLog","Registrar resultados em um log de diagnóstico",236,111,650,27,NS_STRETCH,0);
+  ns_add(NS_FIRST+71,NS_CHECK,4,"ConfirmAggressiveClean","Confirmar antes de operações agressivas",236,155,650,27,NS_STRETCH,1);
+  ns_add(NS_FIRST+72,NS_CHECK,4,"ShowGraph","Exibir gráfico na janela principal",236,324,650,27,NS_STRETCH,0);
+  NSField *refresh=ns_add(NS_FIRST+73,NS_NUMBER,4,"RefreshSeconds","Atualizar métricas a cada (s)",736,463,66,25,NS_RIGHT,1);
+  refresh->min=1;refresh->max=5;
+  const wchar_t *popular[]={L"Segoe UI",L"Arial",L"Calibri",L"Consolas",L"Tahoma",L"Verdana"};
+  for(unsigned i=0;i<sizeof(popular)/sizeof(*popular);++i)SendMessageW(g_ns_font_box,CB_ADDSTRING,0,(LPARAM)popular[i]);
+  for(int i=0;i<g_ns_language_count;++i){wchar_t caption[220];ns_language_caption(&g_ns_languages[i],caption,220);SendMessageW(g_ns_language_box,CB_ADDSTRING,0,(LPARAM)caption);}
 }
 static void ns_refresh_fields(void){
  if(!g_ns_hwnd)return;
+ HWND apply_button=GetDlgItem(g_ns_hwnd,NS_APPLY);
+ if(apply_button){int dirty=ns_is_dirty()||g_ns_color_dirty;
+   if(IsWindowEnabled(apply_button)!=dirty){EnableWindow(apply_button,dirty);InvalidateRect(apply_button,NULL,FALSE);}}
  g_ns_updating=1;
  int theme_changed=g_ns_theme!=g_settings.dark||g_ns_dpi!=GetDpiForWindow(g_ns_hwnd);
  int transparency_changed=g_ns_window_blur!=g_settings.window_blur;
@@ -266,111 +304,223 @@ static void ns_refresh_fields(void){
  g_ns_updating=0;
  if(theme_changed)for(int i=0;i<g_ns_count;++i)if(g_ns_spinners[i])InvalidateRect(g_ns_spinners[i],NULL,FALSE);
  if(theme_changed||transparency_changed||language_changed)RedrawWindow(g_ns_hwnd,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN);
- else if(g_ns_page==2)ns_invalidate(194,222,650,226);
+ else if(g_ns_page==2)InvalidateRect(g_ns_hwnd,NULL,FALSE);
  else if(g_ns_page==1){ns_invalidate(194,342,650,125);for(int i=0;i<3;++i)InvalidateRect(GetDlgItem(g_ns_hwnd,NS_PROFILE_LEVE+i),NULL,FALSE);}
 }
 static void ns_layout(void){
- if(!g_ns_hwnd)return;RECT client;GetClientRect(g_ns_hwnd,&client);int width=MulDiv(client.right,96,(int)GetDpiForWindow(g_ns_hwnd)),height=MulDiv(client.bottom,96,(int)GetDpiForWindow(g_ns_hwnd)),extra=width-700;
- for(int i=0;i<5;++i)ns_move(GetDlgItem(g_ns_hwnd,NS_NAV+i),14,18+i*37,162,33);
- ns_move(GetDlgItem(g_ns_hwnd,NS_APPLY),width-105,height-42,89,30);ns_move(GetDlgItem(g_ns_hwnd,NS_CLOSE),width-210,height-42,93,30);ns_move(GetDlgItem(g_ns_hwnd,NS_DEFAULTS),width-355,height-42,133,30);
- for(int i=0;i<3;++i){int x=i==0?210:i==1?315:441;int cw=i==0?96:i==1?116:135;ns_move(GetDlgItem(g_ns_hwnd,NS_PROFILE_LEVE+i),x,65,cw,27);ns_show(GetDlgItem(g_ns_hwnd,NS_PROFILE_LEVE+i),g_ns_page==1);}
- ns_move(GetDlgItem(g_ns_hwnd,NS_TEST_NOTIFICATION),210,432,186,28);ns_show(GetDlgItem(g_ns_hwnd,NS_TEST_NOTIFICATION),g_ns_page==3);
- ns_move(GetDlgItem(g_ns_hwnd,NS_COPY_HEX),613,354,63,27);ns_show(GetDlgItem(g_ns_hwnd,NS_COPY_HEX),g_ns_page==2);
- for(int i=0;i<g_ns_count;++i){NSField *f=&g_ns_fields[i];int x=f->x+((f->anchor&NS_RIGHT)?extra:0),y=f->y,w=f->w+((f->anchor&NS_STRETCH)?extra:0);
-  if(f->page==2&&f->id>=NS_FIRST+42&&f->id<=NS_FIRST+47){int cell=(width-252)/2;x=210+((f->id-(NS_FIRST+42))%2)*(cell+12);w=cell;}
-  if(f->kind==NS_NUMBER&&g_ns_spinners[i]){
-    HWND spinner=g_ns_spinners[i];
-    ns_move(spinner,x-8,y-2,w+40,30);
-    int sw=ui_scale(spinner,w+40),sh=ui_scale(spinner,30);
-    SetWindowPos(f->hwnd,NULL,ui_scale(spinner,10),ui_scale(spinner,7),
-        max(20,sw-ui_scale(spinner,48)),max(15,sh-ui_scale(spinner,14)),SWP_NOZORDER|SWP_NOACTIVATE);
-    ns_show(spinner,f->page==g_ns_page);
-    ns_show(f->hwnd,f->page==g_ns_page);
-  }else{
-    if(f->region>=0)ns_move(f->hwnd,8,f->region*NS_REGION_ROW-g_ns_region_scroll,width-264,NS_REGION_HEIGHT);
-    else ns_move(f->hwnd,x,y,max(30,w),f->kind==NS_COMBO?240:f->h);
-    ns_show(f->hwnd,f->page==g_ns_page);
+  if(!g_ns_hwnd)return;
+  RECT rect;GetClientRect(g_ns_hwnd,&rect);
+  int width=MulDiv(rect.right,96,(int)GetDpiForWindow(g_ns_hwnd));
+  int height=MulDiv(rect.bottom,96,(int)GetDpiForWindow(g_ns_hwnd));
+  int extra=width-970,scroll=ns_scroll();
+  for(int i=0;i<5;++i)ns_move(GetDlgItem(g_ns_hwnd,NS_NAV+i),16,32+i*45,176,38);
+  ns_move(GetDlgItem(g_ns_hwnd,NS_APPLY),width-122,height-49,106,36);
+  ns_move(GetDlgItem(g_ns_hwnd,NS_CLOSE),width-249,height-49,114,36);
+  ns_move(GetDlgItem(g_ns_hwnd,NS_DEFAULTS),width-420,height-49,158,36);
+  for(int i=0;i<3;++i){int left=230+i*((width-270)/3+6);int w=(width-270)/3-8;
+    ns_move(GetDlgItem(g_ns_hwnd,NS_PROFILE_LEVE+i),left,85-scroll,w,60);
+    ns_show(GetDlgItem(g_ns_hwnd,NS_PROFILE_LEVE+i),g_ns_page==1&&ns_page_visible(85,60));
   }
- }
- ns_move(g_ns_region,208,101,width-236,224);ns_show(g_ns_region,g_ns_page==1);
- ns_move(g_ns_authorize,238,378,190,23);ns_show(g_ns_authorize,g_ns_page==0&&g_ns_preview.skip_uac&&!g_ns_authorized);
- for(int i=0;i<8;++i){HWND button=GetDlgItem(g_ns_hwnd,NS_PALETTE+i);ns_move(button,210+i*29,397,23,23);ns_show(button,g_ns_page==2);}
- for(int i=0;i<3;++i){ns_move(g_ns_sliders[i],456,263+i*28,width-478,24);ns_show(g_ns_sliders[i],g_ns_page==2);}ns_move(GetDlgItem(g_ns_hwnd,NS_OPEN_LOG),210,131,160,27);ns_show(GetDlgItem(g_ns_hwnd,NS_OPEN_LOG),g_ns_page==4);
- RedrawWindow(g_ns_hwnd,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);
+  ns_move(GetDlgItem(g_ns_hwnd,NS_TEST_NOTIFICATION),240,713-scroll,186,32);
+  ns_show(GetDlgItem(g_ns_hwnd,NS_TEST_NOTIFICATION),g_ns_page==3&&ns_page_visible(713,32));
+  ns_move(GetDlgItem(g_ns_hwnd,NS_COPY_HEX),width-118,628-scroll,78,30);
+  ns_show(GetDlgItem(g_ns_hwnd,NS_COPY_HEX),g_ns_page==2&&ns_page_visible(628,30));
+  for(int i=0;i<g_ns_count;++i){NSField *f=&g_ns_fields[i];
+    int x=f->x+((f->anchor&NS_RIGHT)?extra:0),y=f->y-scroll;
+    int w=f->w+((f->anchor&NS_STRETCH)?extra:0),h=f->h;
+    if(f->kind==NS_NUMBER&&g_ns_spinners[i]){
+      HWND spinner=g_ns_spinners[i];ns_move(spinner,x-8,y-2,w+40,32);
+      int sw=ui_scale(spinner,w+40),sh=ui_scale(spinner,32);
+      SetWindowPos(f->hwnd,NULL,ui_scale(spinner,10),ui_scale(spinner,7),
+         max(20,sw-ui_scale(spinner,48)),max(15,sh-ui_scale(spinner,14)),SWP_NOZORDER|SWP_NOACTIVATE);
+      int enabled=f->page==g_ns_page&&ns_page_visible(f->y-2,32);
+      ns_show(spinner,enabled);ns_show(f->hwnd,enabled);
+    }else{
+      if(f->region>=0)ns_move(f->hwnd,8,f->region*NS_REGION_ROW-g_ns_region_scroll,width-277,NS_REGION_HEIGHT);
+      else ns_move(f->hwnd,x,y,max(30,w),f->kind==NS_COMBO?240:h);
+      int enabled=f->page==g_ns_page&&(f->region>=0||ns_page_visible(f->y,h));
+      ns_show(f->hwnd,enabled);
+    }
+  }
+  ns_move(g_ns_region,227,258-scroll,width-264,308);
+  ns_show(g_ns_region,g_ns_page==1&&ns_page_visible(258,308));
+  ns_move(g_ns_authorize,width-250,591-scroll,214,31);
+  ns_show(g_ns_authorize,g_ns_page==0&&g_ns_preview.skip_uac&&!g_ns_authorized&&ns_page_visible(591,31));
+  for(int i=0;i<8;++i){HWND button=GetDlgItem(g_ns_hwnd,NS_PALETTE+i);
+    ns_move(button,236+i*34,671-scroll,27,27);ns_show(button,g_ns_page==2&&ns_page_visible(671,27));}
+  for(int i=0;i<3;++i){ns_move(g_ns_sliders[i],635,493+i*44-scroll,width-662,26);
+    ns_show(g_ns_sliders[i],g_ns_page==2&&ns_page_visible(493+i*44,26));}
+  ns_move(GetDlgItem(g_ns_hwnd,NS_OPEN_LOG),236,208-scroll,186,31);
+  ns_show(GetDlgItem(g_ns_hwnd,NS_OPEN_LOG),g_ns_page==4&&ns_page_visible(208,31));
+  RedrawWindow(g_ns_hwnd,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN);
 }
-static void ns_label(HDC dc,const char *label,int x,int y,int w,int h,HFONT font,COLORREF color,UINT flags){wchar_t text[768];translate(label,text,768);RECT r={ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,x+w),ui_scale(g_ns_hwnd,y+h)};ui_text_draw(dc,r,text,font,color,flags|DT_NOPREFIX);}
-static void ns_card(HDC dc,int y,int h,const char *title){RECT client;GetClientRect(g_ns_hwnd,&client);RECT r={ui_scale(g_ns_hwnd,194),ui_scale(g_ns_hwnd,y),client.right-ui_scale(g_ns_hwnd,14),ui_scale(g_ns_hwnd,y+h)};ui_round(dc,r,ui_surface(),ui_scale(g_ns_hwnd,9));ns_label(dc,title,210,y+12,MulDiv(client.right,96,(int)GetDpiForWindow(g_ns_hwnd))-240,20,g_ns_bold,ui_text(),DT_SINGLELINE);}
-static void ns_paint(HWND hwnd,HDC dc){RECT client;GetClientRect(hwnd,&client);HBRUSH bg=CreateSolidBrush(ui_background());FillRect(dc,&client,bg);DeleteObject(bg);RECT nav={ui_scale(hwnd,8),ui_scale(hwnd,8),ui_scale(hwnd,184),client.bottom-ui_scale(hwnd,8)};ui_round(dc,nav,ui_surface(),ui_scale(hwnd,9));int w=MulDiv(client.right,96,(int)GetDpiForWindow(hwnd));
- if(g_ns_page==0){
-    ns_card(dc,16,125,"Inicialização");
-    ns_card(dc,149,128,"Janela e aparência");
-    ns_card(dc,285,120,"Segurança");
-    ns_card(dc,413,64,"Idioma");
-    ns_label(dc,"Idioma do aplicativo:",210,447,122,26,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
- }
- else if(g_ns_page==1){
-    ns_card(dc,16,320,"Operações de limpeza · escolha um perfil");
-    ns_card(dc,344,112,"Impacto da operação selecionada");
-    ns_card(dc,464,70,"Atalho global");
+static void ns_label(HDC dc,const char *label,int x,int y,int w,int h,HFONT font,COLORREF color,UINT flags){
+  wchar_t text[768];translate(label,text,768);
+  RECT r={ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,x+w),ui_scale(g_ns_hwnd,y+h)};
+  ui_text_draw(dc,r,text,font,color,flags|DT_NOPREFIX);
+}
+static void ns_card(HDC dc,int y,int h,const char *title,const char *subtitle){
+  RECT client;GetClientRect(g_ns_hwnd,&client);
+  RECT r={ui_scale(g_ns_hwnd,209),ui_scale(g_ns_hwnd,y),client.right-ui_scale(g_ns_hwnd,17),ui_scale(g_ns_hwnd,y+h)};
+  ui_round_border(dc,r,ui_surface(),ui_outline(),ui_scale(g_ns_hwnd,10));
+  int w=MulDiv(client.right,96,(int)GetDpiForWindow(g_ns_hwnd));
+  ns_label(dc,title,233,y+16,w-265,26,g_ns_bold,ui_text(),DT_SINGLELINE|DT_VCENTER);
+  if(subtitle&&*subtitle)ns_label(dc,subtitle,233,y+44,w-265,28,g_ns_font,ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
+}
+static void ns_info_line(HDC dc,const char *title,int x,int y,int w){
+  ns_label(dc,title,x,y,w,21,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
+}
+static void ns_draw_preview(HDC dc,int x,int y,int width,int light,HICON icon){
+  RECT r={ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,x+width),ui_scale(g_ns_hwnd,y+68)};
+  COLORREF bg=light?RGB(233,239,246):RGB(20,30,48);
+  ui_round_border(dc,r,bg,ui_outline(),ui_scale(g_ns_hwnd,7));
+  int icon_size=ui_scale(g_ns_hwnd,25);
+  if(icon)DrawIconEx(dc,ui_scale(g_ns_hwnd,x+12),ui_scale(g_ns_hwnd,y+26),icon,icon_size,icon_size,0,NULL,DI_NORMAL);
+  RECT label={ui_scale(g_ns_hwnd,x+52),ui_scale(g_ns_hwnd,y+27),ui_scale(g_ns_hwnd,x+width-8),ui_scale(g_ns_hwnd,y+51)};
+  ui_text_draw(dc,label,L"14:25",g_ns_font,light?RGB(26,31,38):RGB(230,236,245),DT_VCENTER|DT_SINGLELINE);
+  ns_label(dc,light?"TEMA CLARO":"TEMA ESCURO",x+12,y+4,width-24,18,g_ns_font,light?RGB(55,65,77):ui_muted(),DT_SINGLELINE);
+}
+static void ns_draw_usage_meter(HDC dc,int x,int y,int w,int warning,int danger){
+  int from=x;
+  for(int i=0;i<32;++i){
+    int percent=i*100/32;
+    COLORREF c=percent<warning?RGB(91,194,141):percent<danger?RGB(245,187,76):RGB(248,109,106);
+    RECT block={ui_scale(g_ns_hwnd,from+i*w/32),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,from+(i+1)*w/32),ui_scale(g_ns_hwnd,y+8)};
+    ui_fill(dc,block,c);
+  }
+  ns_label(dc,"Normal",x,y+18,w/3,19,g_ns_font,ui_muted(),DT_SINGLELINE);
+  ns_label(dc,"Alerta",x+w/3,y+18,w/3,19,g_ns_font,ui_muted(),DT_CENTER|DT_SINGLELINE);
+  ns_label(dc,"Perigo",x+2*w/3,y+18,w/3,19,g_ns_font,ui_muted(),DT_RIGHT|DT_SINGLELINE);
+}
+static void ns_paint(HWND hwnd,HDC dc){
+  RECT client;GetClientRect(hwnd,&client);ui_fill(dc,client,ui_background());
+  int w=MulDiv(client.right,96,(int)GetDpiForWindow(hwnd));
+  int h=MulDiv(client.bottom,96,(int)GetDpiForWindow(hwnd));
+  RECT nav={ui_scale(hwnd,8),ui_scale(hwnd,10),ui_scale(hwnd,201),client.bottom-ui_scale(hwnd,64)};
+  ui_round_border(dc,nav,ui_surface(),ui_outline(),ui_scale(hwnd,10));
+  int saved=SaveDC(dc);
+  IntersectClipRect(dc,ui_scale(hwnd,205),ui_scale(hwnd,10),client.right-ui_scale(hwnd,12),ui_scale(hwnd,ns_view_bottom()));
+  SetViewportOrgEx(dc,0,-ui_scale(hwnd,ns_scroll()),NULL);
+  if(g_ns_page==0){
+    ns_card(dc,18,194,"Inicialização","Defina como o Orion Memory inicia junto com o Windows.");
+    ns_info_line(dc,"Inicia automaticamente com o sistema.",263,113,w-300);
+    ns_info_line(dc,"Abre minimizado na área de notificação.",263,153,w-300);
+    ns_info_line(dc,"Mantém o aplicativo em execução na bandeja.",263,193,w-300);
+    ns_card(dc,225,192,"Janela e aparência","Personalize o comportamento e a apresentação da janela.");
+    ns_info_line(dc,"Mantém a janela visível acima das demais.",263,311,w-300);
+    ns_info_line(dc,"Aplica o tema escuro à interface.",263,361,w-300);
+    ns_info_line(dc,"Usa transparência quando suportada pelo Windows.",263,401,w-300);
+    ns_card(dc,430,207,"Segurança","Proteja suas configurações e gerencie autorizações.");
+    ns_info_line(dc,"Solicita confirmação antes da liberação de memória.",263,531,w-300);
+    ns_info_line(dc,"Configuração autorizada, sem desativar o UAC do Windows.",263,574,w-300);
+    RECT status={ui_scale(hwnd,233),ui_scale(hwnd,592),client.right-ui_scale(hwnd,25),ui_scale(hwnd,625)};
+    ui_round_border(dc,status,ui_background(),ui_outline(),ui_scale(hwnd,6));
+    ns_label(dc,g_ns_authorized?"Autorização administrativa configurada":"Autorização administrativa ainda não configurada",245,597,w-540,25,g_ns_font,g_ns_authorized?RGB(91,194,141):ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
+    ns_card(dc,650,97,"Idioma","Selecione o idioma do aplicativo.");
+    ns_label(dc,"Idioma do aplicativo:",469,706,182,26,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+  }
+  else if(g_ns_page==1){
+    ns_card(dc,18,138,"Perfil de limpeza","Escolha um perfil para selecionar as operações manuais.");
+    ns_card(dc,167,419,"Áreas incluídas na limpeza","Nove operações com riscos diferentes. Passe o mouse para ver os detalhes.");
+    ns_card(dc,598,137,"Informações sobre a limpeza","Impacto possível da operação selecionada (sem promessa de mais FPS).");
     int selected=g_ns_region_hint>=0&&g_ns_region_hint<9?g_ns_region_hint:4;
     int risk=ns_region_risk[selected];
-    ns_label(dc,ns_risk_names[risk],210,373,w-252,23,g_ns_bold,ns_risk_color(risk),DT_SINGLELINE|DT_VCENTER);
-    ns_label(dc,ns_region_details[selected],210,402,w-250,47,g_ns_font,ui_muted(),DT_WORDBREAK);
-    ns_label(dc,"Aumento de RAM livre não garante mais FPS ou desempenho.",210,541,w-250,25,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER);
- }
- else if(g_ns_page==2){
-    ns_card(dc,22,184,"Estilo do ícone");
-    ns_label(dc,"Fonte:",210,69,47,28,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
-    ns_label(dc,"pt",661+(w-700),70,20,26,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER);
-    ns_card(dc,222,226,"Paleta e personalização");
-    ns_label(dc,"Personalizar cor (R / G / B)",456,244,w-474,18,g_ns_font,ui_muted(),DT_SINGLELINE);
-    Settings saved=g_settings;
-    g_settings=g_ns_preview;
+    ns_label(dc,region_labels[selected],234,665,w-315,23,g_ns_bold,ui_text(),DT_SINGLELINE|DT_END_ELLIPSIS);
+    ns_label(dc,ns_risk_names[risk],w-192,665,157,23,g_ns_bold,ns_risk_color(risk),DT_RIGHT|DT_SINGLELINE);
+    ns_label(dc,ns_region_details[selected],234,694,w-275,36,g_ns_font,ui_muted(),DT_WORDBREAK);
+    ns_card(dc,744,75,"Atalho global",NULL);
+    ns_label(dc,"Liberar memória manualmente com uma combinação de teclas.",234,775,446,21,g_ns_font,ui_muted(),DT_SINGLELINE);
+  }
+  else if(g_ns_page==2){
+    ns_card(dc,18,138,"Tipografia","Defina a fonte, o tamanho e o peso do indicador.");
+    ns_label(dc,"Fonte:",237,112,78,28,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
+    ns_label(dc,"Tamanho:",646,111,66,28,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
+    ns_label(dc,"pt",w-134,112,24,26,g_ns_font,ui_muted(),DT_VCENTER|DT_SINGLELINE);
+    ns_card(dc,168,220,"Estilo do ícone","Configure a apresentação do indicador na bandeja do Windows.");
+    ns_info_line(dc,"Integrado ao visual do Windows.",263,272,318);
+    ns_info_line(dc,"Adiciona uma borda ao indicador.",263,319,318);
+    ns_info_line(dc,"Aplica a cor do nível ao fundo.",263,369,318);
+    ns_info_line(dc,"Mantém cantos e linhas suaves.",630,319,310);
+    ns_card(dc,400,412,"Paleta e personalização","Ajuste as cores e confira a prévia sem modificar o Windows.");
+    ns_label(dc,"Personalizar cor (R / G / B)",625,461,w-663,24,g_ns_font,ui_muted(),DT_SINGLELINE);
+    ns_label(dc,"R",612,494,21,25,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+    ns_label(dc,"G",612,538,21,25,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+    ns_label(dc,"B",612,582,21,25,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+    ns_label(dc,"Prévia do indicador na barra de tarefas",610,677,w-637,21,g_ns_font,ui_muted(),DT_SINGLELINE);
+    Settings prior=g_settings;g_settings=g_ns_preview;
     g_settings.text_color=g_ns_colors[0];g_settings.background_color=g_ns_colors[1];
     g_settings.warning_color=g_ns_colors[2];g_settings.danger_color=g_ns_colors[3];
-    int usage=g_ns_color_role==2?g_settings.warning:g_ns_color_role==3?g_settings.danger:min(76,g_settings.warning-1);
-    /* Preview the real dynamically rendered tray icon in both desktop palettes. */
-    g_settings.dark=1;HICON dark_icon=render_icon(usage,ui_scale(hwnd,33));
-    g_settings.dark=0;HICON light_icon=render_icon(usage,ui_scale(hwnd,33));
-    g_settings=saved;
-    int dx=ui_scale(hwnd,w-154),lx=ui_scale(hwnd,w-96),py=ui_scale(hwnd,404);
-    RECT dark_bg={dx-ui_scale(hwnd,4),py-ui_scale(hwnd,4),dx+ui_scale(hwnd,37),py+ui_scale(hwnd,37)};
-    RECT light_bg={lx-ui_scale(hwnd,4),py-ui_scale(hwnd,4),lx+ui_scale(hwnd,37),py+ui_scale(hwnd,37)};
-    ui_round(dc,dark_bg,RGB(27,29,35),ui_scale(hwnd,6));
-    ui_round(dc,light_bg,RGB(238,241,245),ui_scale(hwnd,6));
-    if(dark_icon){DrawIconEx(dc,dx,py,dark_icon,ui_scale(hwnd,33),ui_scale(hwnd,33),0,NULL,DI_NORMAL);DestroyIcon(dark_icon);}
-    if(light_icon){DrawIconEx(dc,lx,py,light_icon,ui_scale(hwnd,33),ui_scale(hwnd,33),0,NULL,DI_NORMAL);DestroyIcon(light_icon);}
-    ns_label(dc,"Escuro",w-166,386,52,18,g_ns_font,ui_muted(),DT_CENTER|DT_SINGLELINE);
-    ns_label(dc,"Claro",w-108,386,52,18,g_ns_font,ui_muted(),DT_CENTER|DT_SINGLELINE);
- }
- else if(g_ns_page==3){
-    ns_card(dc,22,132,"Níveis de utilização");
-    ns_label(dc,"Acionar o nível de alerta em: (%)",210,73,w-340,26,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
-    ns_label(dc,"Acionar o nível de perigo em: (%)",210,111,w-340,26,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
-    ns_card(dc,174,113,"Interações com a bandeja");
-    ns_label(dc,"Clique simples:",210,207,230,28,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
-    ns_label(dc,"Clique duplo:",210,247,230,28,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
-    ns_card(dc,310,160,"Notificações");
-    ns_label(dc,"Teste a notificação sem executar a limpeza de memória.",210,415,w-250,19,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER);
- }
- else{
-    ns_card(dc,22,148,"Diagnóstico e segurança");
-    ns_card(dc,181,70,"Janela principal");
-    ns_card(dc,264,86,"Frequência de atualização");
-    ns_label(dc,"Atualizar métricas a cada: (s)",210,305,w-340,27,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);
-    ns_label(dc,"Operações agressivas podem aumentar a atividade de disco.",205,357,w-228,23,g_ns_font,ui_muted(),DT_SINGLELINE);
-    ns_card(dc,386,136,"Informações técnicas");
-    ns_label(dc,"Arquitetura: Windows x64  |  Motor: Win32 nativo",210,420,w-255,24,g_ns_font,ui_muted(),DT_SINGLELINE);
+    int usage=g_ns_color_role==2?g_settings.warning:g_ns_color_role==3?g_settings.danger:min(74,g_settings.warning-1);
+    g_settings.dark=1;HICON icon_dark=render_icon(usage,ui_scale(hwnd,25));
+    g_settings.dark=0;HICON icon_light=render_icon(usage,ui_scale(hwnd,25));
+    g_settings=prior;
+    int card_width=(w-635)/2-9;
+    ns_draw_preview(dc,611,709,card_width,0,icon_dark);
+    ns_draw_preview(dc,621+card_width,709,card_width,1,icon_light);
+    if(icon_dark)DestroyIcon(icon_dark);if(icon_light)DestroyIcon(icon_light);
+  }
+  else if(g_ns_page==3){
+    ns_card(dc,18,228,"Níveis de utilização","Configure os percentuais de alerta e perigo no indicador.");
+    ns_label(dc,"Acionar o nível de alerta em:",238,110,340,28,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+    ns_label(dc,"Acionar o nível de perigo em:",238,160,340,28,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+    ns_draw_usage_meter(dc,w-275,118,235,g_ns_preview.warning,g_ns_preview.danger);
+    ns_label(dc,"Os níveis informam o uso da RAM. Não executam limpeza automática.",238,206,w-280,22,g_ns_font,ui_muted(),DT_SINGLELINE);
+    ns_card(dc,258,197,"Interações com a bandeja","Escolha o que acontece ao clicar no indicador.");
+    ns_label(dc,"Clique simples:",238,347,285,29,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+    ns_label(dc,"Clique duplo:",238,399,285,29,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+    ns_card(dc,467,345,"Notificações","Configure os avisos exibidos após uma limpeza manual.");
+    ns_info_line(dc,"Mostra o resultado de cada operação.",265,572,345);
+    ns_info_line(dc,"Reproduz um som ao concluir a operação.",265,632,345);
+    ns_label(dc,"Prévia de notificação (exemplo)",625,543,w-660,22,g_ns_font,ui_muted(),DT_SINGLELINE);
+    RECT bubble={ui_scale(hwnd,620),ui_scale(hwnd,574),client.right-ui_scale(hwnd,28),ui_scale(hwnd,704)};
+    ui_round_border(dc,bubble,ui_background(),ui_outline(),ui_scale(hwnd,8));
+    ns_label(dc,"Orion Memory",637,589,w-684,25,g_ns_bold,ui_text(),DT_SINGLELINE);
+    ns_label(dc,"Limpeza concluída (exemplo)",637,623,w-684,25,g_ns_font,ui_text(),DT_SINGLELINE);
+    ns_label(dc,"Nenhuma limpeza foi executada.",637,659,w-684,25,g_ns_font,ui_muted(),DT_SINGLELINE);
+    ns_label(dc,"Teste a notificação sem alterar a memória do computador.",438,716,190,40,g_ns_font,ui_muted(),DT_WORDBREAK);
+  }
+  else{
+    ns_card(dc,18,238,"Diagnóstico e segurança","Registre informações e confirme operações potencialmente invasivas.");
+    ns_info_line(dc,"Salva informações locais sobre a limpeza de memória.",263,135,w-300);
+    ns_info_line(dc,"Exibe avisos antes de procedimentos avançados.",263,180,w-300);
+    ns_label(dc,"Operações agressivas podem provocar lentidão e uso intenso de disco.",465,218,w-500,28,g_ns_font,ns_risk_color(1),DT_WORDBREAK);
+    ns_card(dc,267,125,"Janela principal","Preferências da janela de monitoramento.");
+    ns_info_line(dc,"Exibe um gráfico das métricas de RAM quando a janela estiver aberta.",263,350,w-300);
+    ns_card(dc,403,123,"Frequência de atualização","Defina o intervalo de consulta das métricas.");
+    ns_label(dc,"Atualizar métricas a cada:",236,460,300,29,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+    ns_label(dc,"segundo(s)",w-137,463,98,26,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER);
+    ns_card(dc,540,264,"Informações técnicas","Dados locais do Orion Memory e do sistema.");
+    ns_label(dc,"Plataforma",238,613,206,24,g_ns_font,ui_muted(),DT_SINGLELINE);
+    ns_label(dc,"Windows x64 · C / Win32",238,641,320,29,g_ns_bold,ui_text(),DT_SINGLELINE);
+    ns_label(dc,"Autorização",579,613,200,24,g_ns_font,ui_muted(),DT_SINGLELINE);
+    ns_label(dc,g_ns_authorized?"Configurada":"Pendente",579,641,170,27,g_ns_bold,g_ns_authorized?RGB(91,194,141):ns_risk_color(1),DT_SINGLELINE);
     PROCESS_MEMORY_COUNTERS_EX proc;memset(&proc,0,sizeof(proc));
     if(GetProcessMemoryInfo(GetCurrentProcess(),(PROCESS_MEMORY_COUNTERS*)&proc,sizeof(proc))){
-        wchar_t memory_text[160];swprintf(memory_text,160,L"RAM residente do Orion Memory: %.1f MB",(double)proc.WorkingSetSize/(1024.0*1024.0));
-        RECT rr={ui_scale(hwnd,210),ui_scale(hwnd,450),client.right-ui_scale(hwnd,24),ui_scale(hwnd,470)};
-        ui_text_draw(dc,rr,memory_text,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+      wchar_t measure[128];swprintf(measure,128,L"RAM residente: %.2f MB",(double)proc.WorkingSetSize/(1024.0*1024.0));
+      RECT area={ui_scale(hwnd,238),ui_scale(hwnd,706),client.right-ui_scale(hwnd,30),ui_scale(hwnd,738)};
+      ui_text_draw(dc,area,measure,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
     }
-    ns_label(dc,g_ns_authorized?"Autorização administrativa: configurada":"Autorização administrativa: pendente",210,482,w-255,23,g_ns_font,ui_muted(),DT_SINGLELINE);
- }
- for(int i=0;i<g_ns_count;++i){NSField *f=&g_ns_fields[i];if(f->page!=g_ns_page||f->region>=0||(f->kind!=NS_COLOR_EDIT&&f->kind!=NS_HOTKEY))continue;RECT r;GetWindowRect(f->hwnd,&r);MapWindowPoints(NULL,hwnd,(POINT*)&r,2);InflateRect(&r,ui_scale(hwnd,7),ui_scale(hwnd,3));ui_round_border(dc,r,ui_surface(),GetFocus()==f->hwnd?ui_focus_outline():ui_outline(),ui_scale(hwnd,5));}
- RECT status={ui_scale(hwnd,205),client.bottom-ui_scale(hwnd,79),client.right-ui_scale(hwnd,18),client.bottom-ui_scale(hwnd,53)};ui_text_draw(dc,status,g_ns_status,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);}
+    ns_label(dc,"A instalação não exige DLLs de terceiros.",238,755,w-270,25,g_ns_font,ui_muted(),DT_SINGLELINE);
+  }
+  RestoreDC(dc,saved);
+  /* Always-fixed bottom bar; no decorative icons or bitmaps. */
+  RECT footer={0,client.bottom-ui_scale(hwnd,59),client.right,client.bottom};
+  ui_fill(dc,footer,ui_surface());
+  HPEN line=CreatePen(PS_SOLID,1,ui_outline());HGDIOBJ old=SelectObject(dc,line);
+  MoveToEx(dc,0,footer.top,NULL);LineTo(dc,footer.right,footer.top);SelectObject(dc,old);DeleteObject(line);
+  RECT message={ui_scale(hwnd,20),footer.top,client.right-ui_scale(hwnd,440),footer.bottom};
+  ui_text_draw(dc,message,g_ns_status,g_ns_font,ns_is_dirty()?ui_accent():ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
+  /* Fixed, discreet scroll indicator (GDI only). */
+  int max_scroll=ns_scroll_max();
+  if(max_scroll>0){
+    int top=ui_scale(hwnd,15),body=ui_scale(hwnd,ns_view_bottom()-26);
+    int thumb=max(ui_scale(hwnd,34),MulDiv(body,ns_view_bottom()-15,g_ns_page_bottom[g_ns_page]));
+    int offset=MulDiv(max(0,body-thumb),ns_scroll(),max_scroll);
+    RECT bar={client.right-ui_scale(hwnd,11),top+offset,client.right-ui_scale(hwnd,7),top+offset+thumb};
+    ui_round(dc,bar,ui_muted(),ui_scale(hwnd,2));
+  }
+}
+
 static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw->hDC;RECT r=draw->rcItem;ui_fill(dc,r,(id==NS_CLOSE||id==NS_DEFAULTS||id==NS_APPLY)?ui_background():ui_surface());NSField *f=ns_field(id);wchar_t text[320];GetWindowTextW(draw->hwndItem,text,320);
  if(draw->CtlType==ODT_COMBOBOX){int selected=(draw->itemState&ODS_SELECTED)!=0;ui_round(dc,r,selected?ui_selection_bg():ui_surface(),ui_scale(g_ns_hwnd,4));if(draw->itemID!=(UINT)-1)SendMessageW(draw->hwndItem,CB_GETLBTEXT,draw->itemID,(LPARAM)text);r.left+=ui_scale(g_ns_hwnd,8);ui_text_draw(dc,r,text,g_ns_font,selected?ui_selection_fg():ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);return TRUE;}
  if(id>=NS_NAV&&id<NS_NAV+5){int active=id==NS_NAV+g_ns_page;ui_round(dc,r,active?ui_selection_bg():GetPropW(draw->hwndItem,L"Orion.Hover")?(g_settings.dark?RGB(50,50,50):RGB(246,246,246)):ui_surface(),ui_scale(g_ns_hwnd,5));if(active){RECT marker={r.left+ui_scale(g_ns_hwnd,3),r.top+ui_scale(g_ns_hwnd,8),r.left+ui_scale(g_ns_hwnd,6),r.bottom-ui_scale(g_ns_hwnd,8)};ui_round(dc,marker,ui_accent(),ui_scale(g_ns_hwnd,2));}r.left+=ui_scale(g_ns_hwnd,12);ui_text_draw(dc,r,text,g_ns_font,ui_selection_fg(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);return TRUE;}
@@ -386,11 +536,15 @@ static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw
  if(id>=NS_PALETTE&&id<NS_PALETTE+8){ui_round(dc,r,ns_palette[id-NS_PALETTE],ui_scale(g_ns_hwnd,3));return TRUE;}
  if(f&&(f->kind==NS_CHECK||f->kind==NS_COLOR)){int checked=f->kind==NS_COLOR?id==NS_COLOR_ROLE+g_ns_color_role:f->checked;ui_round(dc,r,f->kind==NS_COLOR&&checked?ui_selection_bg():ui_surface(),ui_scale(g_ns_hwnd,5));int sz=ui_scale(g_ns_hwnd,17),left=r.left+ui_scale(g_ns_hwnd,2),top=r.top+(r.bottom-r.top-sz)/2;RECT box={left,top,left+sz,top+sz};ui_round_border(dc,box,f->kind==NS_COLOR?g_ns_colors[id-NS_COLOR_ROLE]:checked?ui_accent():ui_background(),(draw->itemState&ODS_FOCUS)?ui_focus_outline():checked?ui_accent():ui_outline(),ui_scale(g_ns_hwnd,4));if(checked&&f->kind==NS_CHECK){HPEN pen=CreatePen(PS_SOLID,max(1,ui_scale(g_ns_hwnd,2)),g_settings.dark?RGB(15,25,35):RGB(255,255,255));HGDIOBJ old=SelectObject(dc,pen);MoveToEx(dc,left+ui_scale(g_ns_hwnd,4),top+ui_scale(g_ns_hwnd,8),NULL);LineTo(dc,left+ui_scale(g_ns_hwnd,7),top+ui_scale(g_ns_hwnd,11));LineTo(dc,left+ui_scale(g_ns_hwnd,13),top+ui_scale(g_ns_hwnd,5));SelectObject(dc,old);DeleteObject(pen);}r.left=box.right+ui_scale(g_ns_hwnd,8);
  if(f->region>=0){
-    const int risk=ns_region_risk[f->region];
-    RECT badge={r.right-ui_scale(g_ns_hwnd,114),r.top+ui_scale(g_ns_hwnd,3),r.right-ui_scale(g_ns_hwnd,5),r.bottom-ui_scale(g_ns_hwnd,3)};
-    RECT label=r;label.right=badge.left-ui_scale(g_ns_hwnd,4);
-    ui_text_draw(dc,label,text,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);
-    ui_round(dc,badge,ui_background(),ui_scale(g_ns_hwnd,6));
+    int risk=ns_region_risk[f->region];
+    int badgeWidth=ui_scale(g_ns_hwnd,111),detailWidth=ui_scale(g_ns_hwnd,208);
+    RECT badge={r.right-badgeWidth-ui_scale(g_ns_hwnd,5),r.top+ui_scale(g_ns_hwnd,4),r.right-ui_scale(g_ns_hwnd,5),r.bottom-ui_scale(g_ns_hwnd,4)};
+    RECT name=r;name.right=max(name.left+ui_scale(g_ns_hwnd,135),badge.left-detailWidth-ui_scale(g_ns_hwnd,8));
+    ui_text_draw(dc,name,text,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);
+    RECT detail=r;detail.left=name.right+ui_scale(g_ns_hwnd,5);detail.right=badge.left-ui_scale(g_ns_hwnd,6);
+    wchar_t desc[160];translate(ns_region_short[f->region],desc,160);
+    ui_text_draw(dc,detail,desc,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
+    ui_round(dc,badge,ui_background(),ui_scale(g_ns_hwnd,7));
     const wchar_t *tag=risk==0?L"Recomendado":risk==1?L"Cautela":L"Pode travar";
     ui_text_draw(dc,badge,tag,g_ns_font,ns_risk_color(risk),DT_CENTER|DT_SINGLELINE|DT_VCENTER);
  }else ui_text_draw(dc,r,text,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);
@@ -399,22 +553,31 @@ static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw
  if(id>=NS_PROFILE_LEVE&&id<=NS_PROFILE_PERSONALIZADO){
     int selected=ns_profile_selected()==id-NS_PROFILE_LEVE;
     ui_round_border(dc,r,selected?ui_selection_bg():ui_surface(),selected?ui_accent():ui_outline(),ui_scale(g_ns_hwnd,6));
-    ui_text_draw(dc,r,text,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER|DT_CENTER);
+    RECT name=r;name.bottom=r.top+(r.bottom-r.top)*2/3;
+    ui_text_draw(dc,name,text,g_ns_bold,ui_text(),DT_SINGLELINE|DT_VCENTER|DT_CENTER);
+    RECT subtitle=r;subtitle.top=name.bottom-ui_scale(g_ns_hwnd,4);
+    const wchar_t *hint=id==NS_PROFILE_LEVE?L"Menor impacto":id==NS_PROFILE_EQUILIBRADO?L"Seleção equilibrada":L"Seleção manual";
+    ui_text_draw(dc,subtitle,hint,g_ns_font,ui_muted(),DT_SINGLELINE|DT_CENTER|DT_VCENTER);
     return TRUE;
  }
- if(id==NS_APPLY){ui_draw_button_ex(draw,1);return TRUE;}ui_draw_button(draw);return TRUE;}
+ if(id==NS_APPLY){
+   int enabled=IsWindowEnabled(draw->hwndItem);
+   ui_round_border(dc,r,enabled?ui_selection_bg():ui_surface(),enabled?ui_accent():ui_outline(),ui_scale(g_ns_hwnd,6));
+   ui_text_draw(dc,r,text,g_ns_font,enabled?ui_text():ui_muted(),DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+   return TRUE;
+ }ui_draw_button(draw);return TRUE;}
 static int ns_hex_color(const wchar_t *input,COLORREF *color){const wchar_t *p=input;if(*p=='#')++p;if(wcslen(p)!=6)return 0;unsigned value=0;for(int i=0;i<6;++i){int h=p[i]>='0'&&p[i]<='9'?p[i]-'0':p[i]>='a'&&p[i]<='f'?p[i]-'a'+10:p[i]>='A'&&p[i]<='F'?p[i]-'A'+10:-1;if(h<0)return 0;value=(value<<4)|(unsigned)h;}*color=RGB((value>>16)&255,(value>>8)&255,value&255);return 1;}
-static void ns_color_text(void){if(!g_ns_hex)return;COLORREF c=g_ns_colors[g_ns_color_role];wchar_t code[16];swprintf(code,16,L"#%02X%02X%02X",GetRValue(c),GetGValue(c),GetBValue(c));g_ns_updating=1;SetWindowTextW(g_ns_hex,code);g_ns_updating=0;for(int i=0;i<3;++i)InvalidateRect(g_ns_sliders[i],NULL,FALSE);ns_invalidate(194,222,650,226);}
+static void ns_color_text(void){if(!g_ns_hex)return;COLORREF c=g_ns_colors[g_ns_color_role];wchar_t code[16];swprintf(code,16,L"#%02X%02X%02X",GetRValue(c),GetGValue(c),GetBValue(c));g_ns_updating=1;SetWindowTextW(g_ns_hex,code);g_ns_updating=0;for(int i=0;i<3;++i)InvalidateRect(g_ns_sliders[i],NULL,FALSE);InvalidateRect(g_ns_hwnd,NULL,FALSE);}
 static void ns_flush_color(void){if(!g_ns_color_dirty)return;KillTimer(g_ns_hwnd,NS_COLOR_TIMER);g_ns_color_dirty=0;COLORREF c=g_ns_colors[g_ns_color_role];char raw[16];snprintf(raw,sizeof(raw),"\"#%02X%02X%02X\"",GetRValue(c),GetGValue(c),GetBValue(c));const char *keys[]={"TrayTextColor","TrayBackgroundColor","TrayWarningColor","TrayDangerColor"};ns_save(keys[g_ns_color_role],raw);}
-static void ns_edit_color(int show_error){wchar_t code[16];COLORREF color;GetWindowTextW(g_ns_hex,code,16);if(!ns_hex_color(code,&color)){if(show_error)ns_status("Cor HEX inválida");return;}if(g_ns_colors[g_ns_color_role]!=color){g_ns_colors[g_ns_color_role]=color;g_ns_color_dirty=1;ns_flush_color();}for(int i=0;i<3;++i)InvalidateRect(g_ns_sliders[i],NULL,FALSE);ns_invalidate(194,222,650,226);}
+static void ns_edit_color(int show_error){wchar_t code[16];COLORREF color;GetWindowTextW(g_ns_hex,code,16);if(!ns_hex_color(code,&color)){if(show_error)ns_status("Cor HEX inválida");return;}if(g_ns_colors[g_ns_color_role]!=color){g_ns_colors[g_ns_color_role]=color;g_ns_color_dirty=1;ns_flush_color();}for(int i=0;i<3;++i)InvalidateRect(g_ns_sliders[i],NULL,FALSE);InvalidateRect(g_ns_hwnd,NULL,FALSE);}
 static int g_ns_region_drag,g_ns_region_drag_y,g_ns_region_drag_scroll;
 static int ns_region_range(HWND hwnd){RECT r;GetClientRect(hwnd,&r);return max(0,NS_REGION_CONTENT-MulDiv(r.bottom,96,(int)GetDpiForWindow(hwnd)));}
 static void ns_region_geometry(HWND hwnd,RECT *track,RECT *thumb){RECT r;GetClientRect(hwnd,&r);int pad=ui_scale(hwnd,7),height=max(1,r.bottom-pad*2),visible=MulDiv(r.bottom,96,(int)GetDpiForWindow(hwnd)),range=ns_region_range(hwnd);track->left=r.right-ui_scale(hwnd,8);track->right=track->left+ui_scale(hwnd,4);track->top=pad;track->bottom=r.bottom-pad;*thumb=*track;int length=max(ui_scale(hwnd,24),MulDiv(height,min(NS_REGION_CONTENT,visible),NS_REGION_CONTENT));length=min(length,height);int travel=height-length;thumb->top+=range?MulDiv(travel,g_ns_region_scroll,range):0;thumb->bottom=thumb->top+length;}
 static void ns_region_set_scroll(HWND hwnd,int next){next=clampi(next,0,ns_region_range(hwnd));int old=g_ns_region_scroll;if(next==old)return;g_ns_region_scroll=next;ScrollWindowEx(hwnd,0,ui_scale(hwnd,old-next),NULL,NULL,NULL,NULL,SW_SCROLLCHILDREN|SW_INVALIDATE);InvalidateRect(hwnd,NULL,FALSE);}
 static void ns_region_ensure_visible(HWND button){RECT child,parent;GetWindowRect(button,&child);MapWindowPoints(NULL,g_ns_region,(POINT*)&child,2);GetClientRect(g_ns_region,&parent);int dpi=(int)GetDpiForWindow(g_ns_region);if(child.top<0)ns_region_set_scroll(g_ns_region,g_ns_region_scroll+MulDiv(child.top,96,dpi));else if(child.bottom>parent.bottom)ns_region_set_scroll(g_ns_region,g_ns_region_scroll+MulDiv(child.bottom-parent.bottom,96,dpi));}
-static LRESULT CALLBACK ns_region_button_proc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp){WNDPROC original=(WNDPROC)GetPropW(hwnd,L"Orion.Settings.RegionProc");if(message==WM_GETDLGCODE)return CallWindowProcW(original,hwnd,message,wp,lp)|DLGC_WANTARROWS;if(message==WM_SETFOCUS){ns_region_ensure_visible(hwnd);if(g_ns_region_hint!=GetDlgCtrlID(hwnd)-(NS_FIRST+20)){g_ns_region_hint=GetDlgCtrlID(hwnd)-(NS_FIRST+20);ns_invalidate(194,344,650,111);}}
- if(message==WM_MOUSEMOVE){NSField *field=ns_field(GetDlgCtrlID(hwnd));if(field&&g_ns_region_hint!=field->region){g_ns_region_hint=field->region;ns_invalidate(194,344,650,111);}TRACKMOUSEEVENT t={sizeof(t),TME_LEAVE,hwnd,0};TrackMouseEvent(&t);}
- if(message==WM_MOUSELEAVE){g_ns_region_hint=-1;ns_invalidate(194,344,650,111);}if(message==WM_KEYDOWN&&(wp==VK_UP||wp==VK_DOWN||wp==VK_HOME||wp==VK_END||wp==VK_PRIOR||wp==VK_NEXT)){NSField *f=ns_field(GetDlgCtrlID(hwnd));if(f){int next=f->region;if(wp==VK_UP)--next;else if(wp==VK_DOWN)++next;else if(wp==VK_HOME)next=0;else if(wp==VK_END)next=8;else next+=wp==VK_NEXT?7:-7;next=clampi(next,0,8);NSField *target=ns_field(NS_FIRST+20+next);if(target)SetFocus(target->hwnd);}return 0;}if(message==WM_NCDESTROY)RemovePropW(hwnd,L"Orion.Settings.RegionProc");return CallWindowProcW(original,hwnd,message,wp,lp);}
+static LRESULT CALLBACK ns_region_button_proc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp){WNDPROC original=(WNDPROC)GetPropW(hwnd,L"Orion.Settings.RegionProc");if(message==WM_GETDLGCODE)return CallWindowProcW(original,hwnd,message,wp,lp)|DLGC_WANTARROWS;if(message==WM_SETFOCUS){ns_region_ensure_visible(hwnd);if(g_ns_region_hint!=GetDlgCtrlID(hwnd)-(NS_FIRST+20)){g_ns_region_hint=GetDlgCtrlID(hwnd)-(NS_FIRST+20);InvalidateRect(g_ns_hwnd,NULL,FALSE);}}
+ if(message==WM_MOUSEMOVE){NSField *field=ns_field(GetDlgCtrlID(hwnd));if(field&&g_ns_region_hint!=field->region){g_ns_region_hint=field->region;InvalidateRect(g_ns_hwnd,NULL,FALSE);}TRACKMOUSEEVENT t={sizeof(t),TME_LEAVE,hwnd,0};TrackMouseEvent(&t);}
+ if(message==WM_MOUSELEAVE){g_ns_region_hint=-1;InvalidateRect(g_ns_hwnd,NULL,FALSE);}if(message==WM_KEYDOWN&&(wp==VK_UP||wp==VK_DOWN||wp==VK_HOME||wp==VK_END||wp==VK_PRIOR||wp==VK_NEXT)){NSField *f=ns_field(GetDlgCtrlID(hwnd));if(f){int next=f->region;if(wp==VK_UP)--next;else if(wp==VK_DOWN)++next;else if(wp==VK_HOME)next=0;else if(wp==VK_END)next=8;else next+=wp==VK_NEXT?7:-7;next=clampi(next,0,8);NSField *target=ns_field(NS_FIRST+20+next);if(target)SetFocus(target->hwnd);}return 0;}if(message==WM_NCDESTROY)RemovePropW(hwnd,L"Orion.Settings.RegionProc");return CallWindowProcW(original,hwnd,message,wp,lp);}
 static LRESULT CALLBACK ns_region_proc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp){switch(message){case WM_MOUSEWHEEL:ns_region_set_scroll(hwnd,g_ns_region_scroll-GET_WHEEL_DELTA_WPARAM(wp)/WHEEL_DELTA*(NS_REGION_ROW*2));return 0;
  case WM_LBUTTONDOWN:{RECT track,thumb;ns_region_geometry(hwnd,&track,&thumb);int x=GET_X_LPARAM(lp),y=GET_Y_LPARAM(lp),range=ns_region_range(hwnd);if(range&&x>=track.left-ui_scale(hwnd,7)){SetFocus(hwnd);if(y<thumb.top||y>thumb.bottom){int travel=max(1,track.bottom-track.top-(thumb.bottom-thumb.top));ns_region_set_scroll(hwnd,MulDiv(y-track.top-(thumb.bottom-thumb.top)/2,range,travel));}g_ns_region_drag=1;g_ns_region_drag_y=y;g_ns_region_drag_scroll=g_ns_region_scroll;SetCapture(hwnd);}return 0;}
  case WM_MOUSEMOVE:if(g_ns_region_drag&&GetCapture()==hwnd){RECT track,thumb;ns_region_geometry(hwnd,&track,&thumb);int travel=max(1,track.bottom-track.top-(thumb.bottom-thumb.top));ns_region_set_scroll(hwnd,g_ns_region_drag_scroll+MulDiv(GET_Y_LPARAM(lp)-g_ns_region_drag_y,ns_region_range(hwnd),travel));}return 0;
@@ -481,7 +644,13 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
  ui_prepare_button(ns_button(hwnd,NS_TEST_NOTIFICATION,L"Testar notificação",0,0,184,27));
  ui_prepare_button(ns_button(hwnd,NS_COPY_HEX,L"Copiar",0,0,64,27));ui_prepare_button(g_ns_authorize);for(int i=0;i<8;++i)ui_prepare_button(GetDlgItem(hwnd,NS_PALETTE+i));for(int i=0;i<3;++i)g_ns_sliders[i]=CreateWindowExW(0,NS_SLIDER_CLASS,L"",WS_CHILD|WS_TABSTOP,0,0,1,1,hwnd,(HMENU)(INT_PTR)(NS_SLIDER+i),g_instance,(LPVOID)(INT_PTR)i);ns_status("Nenhuma alteração pendente");ns_refresh_fields();ns_layout();return 0;}
  case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(hwnd,&ps);ui_paint_buffered(hwnd,dc,&ps.rcPaint,ns_paint);EndPaint(hwnd,&ps);return 0;}case WM_ERASEBKGND:return 1;case WM_SIZE:ns_layout();return 0;
- case WM_GETMINMAXINFO:{MINMAXINFO *limits=(MINMAXINFO*)lp;RECT size={0,0,ui_scale(hwnd,730),ui_scale(hwnd,615)};AdjustWindowRectExForDpi(&size,(DWORD)GetWindowLongPtrW(hwnd,GWL_STYLE),FALSE,(DWORD)GetWindowLongPtrW(hwnd,GWL_EXSTYLE),GetDpiForWindow(hwnd));limits->ptMinTrackSize.x=size.right-size.left;limits->ptMinTrackSize.y=size.bottom-size.top;return 0;}
+ case WM_GETMINMAXINFO:{MINMAXINFO *limits=(MINMAXINFO*)lp;RECT size={0,0,ui_scale(hwnd,850),ui_scale(hwnd,580)};AdjustWindowRectExForDpi(&size,(DWORD)GetWindowLongPtrW(hwnd,GWL_STYLE),FALSE,(DWORD)GetWindowLongPtrW(hwnd,GWL_EXSTYLE),GetDpiForWindow(hwnd));limits->ptMinTrackSize.x=size.right-size.left;limits->ptMinTrackSize.y=size.bottom-size.top;return 0;}
+ case WM_MOUSEWHEEL:{
+    int delta=GET_WHEEL_DELTA_WPARAM(wp)/WHEEL_DELTA;
+    int maximum=ns_scroll_max();
+    if(maximum>0){g_ns_page_scroll[g_ns_page]=clampi(ns_scroll()-delta*55,0,maximum);ns_layout();}
+    return 0;
+ }
  case WM_DPICHANGED:{RECT *suggested=(RECT*)lp;SetWindowPos(hwnd,NULL,suggested->left,suggested->top,suggested->right-suggested->left,suggested->bottom-suggested->top,SWP_NOZORDER|SWP_NOACTIVATE);g_ns_dpi=0;ns_refresh_fields();ns_layout();return 0;}
  case NS_REFRESH:ns_refresh_fields();return 0;
  case WM_TIMER:if(wp==NS_COLOR_TIMER)ns_flush_color();return 0;
@@ -532,7 +701,7 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
  case WM_CLOSE:DestroyWindow(hwnd);return 0;
  case WM_DESTROY:KillTimer(hwnd,NS_COLOR_TIMER);free(g_ns_draft);free(g_ns_baseline);g_ns_draft=g_ns_baseline=NULL;ui_release_text_fonts();if(g_ns_font)DeleteObject(g_ns_font);if(g_ns_bold)DeleteObject(g_ns_bold);if(g_ns_title)DeleteObject(g_ns_title);if(g_ns_edit_brush)DeleteObject(g_ns_edit_brush);if(g_ns_spinner_brush)DeleteObject(g_ns_spinner_brush);g_ns_font=g_ns_bold=g_ns_title=NULL;g_ns_edit_brush=g_ns_spinner_brush=NULL;g_ns_hwnd=NULL;g_ns_region=NULL;g_ns_count=0;return 0;
  }return DefWindowProcW(hwnd,message,wp,lp);}
-static void native_settings_show(HWND owner){if(g_ns_hwnd){ShowWindow(g_ns_hwnd,SW_SHOWNORMAL);SetForegroundWindow(g_ns_hwnd);return;}WNDCLASSEXW cls;memset(&cls,0,sizeof(cls));cls.cbSize=sizeof(cls);cls.hInstance=g_instance;cls.hCursor=LoadCursor(NULL,IDC_ARROW);cls.lpfnWndProc=ns_region_proc;cls.lpszClassName=NS_REGION_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_slider_proc;cls.lpszClassName=NS_SLIDER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_spinner_proc;cls.lpszClassName=NS_SPINNER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=native_settings_proc;cls.lpszClassName=NS_CLASS;cls.hIcon=LoadIconW(g_instance,MAKEINTRESOURCEW(1));RegisterClassExW(&cls);UINT dpi=owner?GetDpiForWindow(owner):96;if(!dpi)dpi=96;RECT bounds={0,0,MulDiv(740,(int)dpi,96),MulDiv(640,(int)dpi,96)};DWORD style=(WS_OVERLAPPEDWINDOW&~WS_MAXIMIZEBOX)|WS_CLIPCHILDREN;AdjustWindowRectExForDpi(&bounds,style,FALSE,0,dpi);HWND window=CreateWindowExW(0,NS_CLASS,L"Configurações — Orion Memory",style,CW_USEDEFAULT,CW_USEDEFAULT,bounds.right-bounds.left,bounds.bottom-bounds.top,owner,NULL,g_instance,NULL);if(window){ui_center(window,owner);ui_apply_window(window);ShowWindow(window,SW_SHOW);RedrawWindow(window,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);}}
+static void native_settings_show(HWND owner){if(g_ns_hwnd){ShowWindow(g_ns_hwnd,SW_SHOWNORMAL);SetForegroundWindow(g_ns_hwnd);return;}WNDCLASSEXW cls;memset(&cls,0,sizeof(cls));cls.cbSize=sizeof(cls);cls.hInstance=g_instance;cls.hCursor=LoadCursor(NULL,IDC_ARROW);cls.lpfnWndProc=ns_region_proc;cls.lpszClassName=NS_REGION_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_slider_proc;cls.lpszClassName=NS_SLIDER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_spinner_proc;cls.lpszClassName=NS_SPINNER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=native_settings_proc;cls.lpszClassName=NS_CLASS;cls.hIcon=LoadIconW(g_instance,MAKEINTRESOURCEW(1));RegisterClassExW(&cls);UINT dpi=owner?GetDpiForWindow(owner):96;if(!dpi)dpi=96;RECT bounds={0,0,MulDiv(970,(int)dpi,96),MulDiv(760,(int)dpi,96)};DWORD style=(WS_OVERLAPPEDWINDOW&~WS_MAXIMIZEBOX)|WS_CLIPCHILDREN;AdjustWindowRectExForDpi(&bounds,style,FALSE,0,dpi);HWND window=CreateWindowExW(0,NS_CLASS,L"Configurações — Orion Memory",style,CW_USEDEFAULT,CW_USEDEFAULT,bounds.right-bounds.left,bounds.bottom-bounds.top,owner,NULL,g_instance,NULL);if(window){ui_center(window,owner);ui_apply_window(window);ShowWindow(window,SW_SHOW);RedrawWindow(window,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);}}
 static void native_settings_refresh(void){if(g_ns_hwnd)PostMessageW(g_ns_hwnd,NS_REFRESH,0,0);}
 static void native_settings_close(void){if(g_ns_hwnd)SendMessageW(g_ns_hwnd,WM_CLOSE,0,0);}
 static int native_settings_message(MSG *message){return g_ns_hwnd&&(message->hwnd==g_ns_hwnd||IsChild(g_ns_hwnd,message->hwnd))&&IsDialogMessageW(g_ns_hwnd,message);}
