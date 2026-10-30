@@ -44,7 +44,7 @@ static int g_ns_force_custom=0;
 /* 5 independently scrollable content panes; title/menu/footer remain stationary. */
 static int g_ns_page; /* tentative declaration; defined alongside the settings globals. */
 static int g_ns_page_scroll[5]={0,0,0,0,0};
-static const int g_ns_page_bottom[5]={542,646,641,540,537};
+static const int g_ns_page_bottom[5]={459,646,641,540,537};
 static int ns_view_bottom(void){if(!g_ns_hwnd)return 556;RECT r;GetClientRect(g_ns_hwnd,&r);return MulDiv(r.bottom,96,(int)GetDpiForWindow(g_ns_hwnd))-63;}
 static int ns_scroll_max(void){return max(0,g_ns_page_bottom[g_ns_page]-ns_view_bottom()+7);}
 static int ns_scroll(void){int maximum=ns_scroll_max();g_ns_page_scroll[g_ns_page]=clampi(g_ns_page_scroll[g_ns_page],0,maximum);return g_ns_page_scroll[g_ns_page];}
@@ -132,7 +132,7 @@ static int ns_object_find(Json *j,int object,const char *key){char name[128];for
 static void ns_token_wide(Json *j,int token,wchar_t *to,int cap){char value[768];to[0]=0;if(json_text(j,token,value,sizeof(value)))MultiByteToWideChar(CP_UTF8,0,value,-1,to,cap);}
 static int __cdecl ns_language_order(const void *a,const void *b){const NSLanguage *one=(const NSLanguage*)a,*two=(const NSLanguage*)b;int result=CompareStringEx(L"pt-BR",NORM_IGNORECASE,one->country,-1,two->country,-1,NULL,NULL,0);if(result==CSTR_EQUAL)return wcscmp(one->code,two->code);return result-CSTR_EQUAL;}
 static void ns_load_languages(void){g_ns_language_count=0;wchar_t path[MAX_PATH];path_join(path,MAX_PATH,g_folder,L"Languages.json");char *array=read_utf8(path);if(array){size_t len=strlen(array);char *wrapped=(char*)malloc(len+16);if(wrapped){snprintf(wrapped,len+16,"{\"items\":%s}",array);Json j;if(json_init(&j,wrapped,strlen(wrapped))){int items=json_find(&j,"items");if(items>=0&&j.tokens[items].type==J_ARRAY)for(int n=items+1;n<j.tokens[items].next&&g_ns_language_count<48;n=j.tokens[n].next){if(j.tokens[n].type!=J_OBJECT)continue;NSLanguage *language=&g_ns_languages[g_ns_language_count];ns_token_wide(&j,ns_object_find(&j,n,"Code"),language->code,32);ns_token_wide(&j,ns_object_find(&j,n,"Country"),language->country,96);ns_token_wide(&j,ns_object_find(&j,n,"Name"),language->name,96);if(language->code[0]&&language->country[0])++g_ns_language_count;}}json_free(&j);free(wrapped);}free(array);}if(!g_ns_language_count){copyw(g_ns_languages[0].code,32,L"pt-BR");copyw(g_ns_languages[0].country,96,L"Brasil");copyw(g_ns_languages[0].name,96,L"Português");g_ns_language_count=1;}qsort(g_ns_languages,(size_t)g_ns_language_count,sizeof(NSLanguage),ns_language_order);}
-static void ns_fonts(void){if(g_ns_font)DeleteObject(g_ns_font);if(g_ns_bold)DeleteObject(g_ns_bold);if(g_ns_title)DeleteObject(g_ns_title);if(g_ns_edit_brush)DeleteObject(g_ns_edit_brush);g_ns_font=ui_font(g_ns_hwnd,13,FW_NORMAL);g_ns_bold=ui_font(g_ns_hwnd,15,FW_SEMIBOLD);g_ns_title=ui_font(g_ns_hwnd,18,FW_SEMIBOLD);g_ns_edit_brush=CreateSolidBrush(ui_surface());if(g_ns_spinner_brush)DeleteObject(g_ns_spinner_brush);g_ns_spinner_brush=CreateSolidBrush(ui_background());g_ns_dpi=GetDpiForWindow(g_ns_hwnd);}
+static void ns_fonts(void){if(g_ns_font)DeleteObject(g_ns_font);if(g_ns_bold)DeleteObject(g_ns_bold);if(g_ns_title)DeleteObject(g_ns_title);if(g_ns_edit_brush)DeleteObject(g_ns_edit_brush);g_ns_font=ui_font(g_ns_hwnd,14,FW_NORMAL);g_ns_bold=ui_font(g_ns_hwnd,16,FW_SEMIBOLD);g_ns_title=ui_font(g_ns_hwnd,18,FW_SEMIBOLD);g_ns_edit_brush=CreateSolidBrush(ui_surface());if(g_ns_spinner_brush)DeleteObject(g_ns_spinner_brush);g_ns_spinner_brush=CreateSolidBrush(ui_background());g_ns_dpi=GetDpiForWindow(g_ns_hwnd);}
 static HWND ns_button(HWND parent,int id,const wchar_t *label,int x,int y,int w,int h){HWND control=CreateWindowExW(0,L"BUTTON",label,WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW,ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,w),ui_scale(g_ns_hwnd,h),parent,(HMENU)(INT_PTR)id,g_instance,NULL);SendMessageW(control,WM_SETFONT,(WPARAM)g_ns_font,FALSE);ui_prepare_button(control);return control;}
 
 /* Unified numeric spinner. The Win32 EDIT remains a real editable/accessibility
@@ -231,11 +231,11 @@ static void ns_create_fields(void){
     {"DarkTheme","Usar tema escuro",1},
     {"WindowBlur","Usar transparência nas janelas",0}
   };
-  const int positions[]={205,64,91,347,377,118,232,259};
+  const int positions[]={174,48,75,300,328,102,201,228};
   for(int i=0;i<8;++i)ns_add(NS_FIRST+i,NS_CHECK,0,general[i].key,general[i].label,199,positions[i],555,27,NS_STRETCH,general[i].fallback);
-  g_ns_authorize=ns_button(g_ns_hwnd,NS_AUTHORIZE,L"",584,411,184,28);
+  g_ns_authorize=ns_button(g_ns_hwnd,NS_AUTHORIZE,L"",506,344,184,29);
   ns_set_text(g_ns_authorize,"Autorizar Orion Memory");
-  g_ns_language_box=ns_add(NS_FIRST+10,NS_COMBO,0,"Language","Idioma",465,492,319,30,NS_RIGHT,0)->hwnd;
+  g_ns_language_box=ns_add(NS_FIRST+10,NS_COMBO,0,"Language","Idioma",465,424,319,30,NS_RIGHT,0)->hwnd;
   for(int i=0;i<9;++i){
     NSField *f=ns_add(NS_FIRST+20+i,NS_CHECK,1,region_keys[i],region_labels[i],0,0,580,NS_REGION_HEIGHT,NS_STRETCH,default_regions[i]);
     f->region=i;SetParent(f->hwnd,g_ns_region);
@@ -322,7 +322,7 @@ static void ns_layout(void){
  int width=MulDiv(rect.right,96,(int)GetDpiForWindow(g_ns_hwnd));
  int height=MulDiv(rect.bottom,96,(int)GetDpiForWindow(g_ns_hwnd));
  int extra=width-820,scroll=ns_scroll();
- for(int i=0;i<5;++i)ns_move(GetDlgItem(g_ns_hwnd,NS_NAV+i),13,26+i*43,151,36);
+ for(int i=0;i<5;++i)ns_move(GetDlgItem(g_ns_hwnd,NS_NAV+i),13,22+i*40,151,34);
  ns_move(GetDlgItem(g_ns_hwnd,NS_APPLY),width-116,height-49,103,34);
  ns_move(GetDlgItem(g_ns_hwnd,NS_CLOSE),width-233,height-49,105,34);
  ns_move(GetDlgItem(g_ns_hwnd,NS_DEFAULTS),width-390,height-49,145,34);
@@ -353,8 +353,8 @@ static void ns_layout(void){
  }
  ns_move(g_ns_region,195,179-scroll,width-209,254);
  ns_show(g_ns_region,g_ns_page==1&&ns_page_visible(179,254));
- ns_move(g_ns_authorize,width-225,411-scroll,198,29);
- ns_show(g_ns_authorize,g_ns_page==0&&g_ns_preview.skip_uac&&!g_ns_authorized&&ns_page_visible(411,29));
+ ns_move(g_ns_authorize,width-225,354-scroll,198,29);
+ ns_show(g_ns_authorize,g_ns_page==0&&g_ns_preview.skip_uac&&!g_ns_authorized&&ns_page_visible(354,29));
  for(int i=0;i<8;++i){HWND button=GetDlgItem(g_ns_hwnd,NS_PALETTE+i);
    ns_move(button,200+i*31,513-scroll,26,26);
    ns_show(button,g_ns_page==2&&ns_page_visible(513,26));
@@ -374,7 +374,7 @@ static void ns_label(HDC dc,const char *label,int x,int y,int w,int h,HFONT font
 static void ns_card(HDC dc,int y,int h,const char *title,const char *subtitle){
  RECT client;GetClientRect(g_ns_hwnd,&client);
  RECT r={ui_scale(g_ns_hwnd,180),ui_scale(g_ns_hwnd,y),client.right-ui_scale(g_ns_hwnd,12),ui_scale(g_ns_hwnd,y+h)};
- ui_round_border(dc,r,ui_surface(),ui_outline(),ui_scale(g_ns_hwnd,11));
+ ui_round_border(dc,r,ui_surface(),ui_outline(),ui_scale(g_ns_hwnd,12));
  int w=MulDiv(client.right,96,(int)GetDpiForWindow(g_ns_hwnd));
  ns_label(dc,title,197,y+9,w-219,23,g_ns_bold,ui_text(),DT_SINGLELINE|DT_VCENTER);
  if(subtitle&&*subtitle)ns_label(dc,subtitle,197,y+34,w-219,21,g_ns_font,ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
@@ -433,14 +433,15 @@ static void ns_paint(HWND hwnd,HDC dc){
  POINT previous_origin;GetViewportOrgEx(dc,&previous_origin);
  SetViewportOrgEx(dc,previous_origin.x,previous_origin.y-ui_scale(hwnd,ns_scroll()),NULL);
  if(g_ns_page==0){
-   ns_card(dc,16,135,"Inicialização",NULL);
-   ns_card(dc,162,130,"Janela e aparência",NULL);
-   ns_card(dc,302,147,"Segurança",NULL);
-   RECT status={ui_scale(hwnd,196),ui_scale(hwnd,409),client.right-ui_scale(hwnd,22),ui_scale(hwnd,440)};
-   ui_round_border(dc,status,ui_background(),ui_outline(),ui_scale(hwnd,7));
-   ns_label(dc,g_ns_authorized?"Autorização configurada":"Autorização pendente",209,414,w-457,25,g_ns_font,g_ns_authorized?RGB(100,204,145):ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
-   ns_card(dc,461,77,"Idioma",NULL);
-   ns_label(dc,"Idioma do aplicativo:",199,492,220,28,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+   /* Fixed, compact general tab: all four cards fit within a 740x530 client area. */
+   ns_card(dc,12,120,"Inicialização",NULL);
+   ns_card(dc,142,116,"Janela e aparência",NULL);
+   ns_card(dc,268,122,"Segurança",NULL);
+   RECT status={ui_scale(hwnd,196),ui_scale(hwnd,354),client.right-ui_scale(hwnd,22),ui_scale(hwnd,383)};
+   ui_round_border(dc,status,ui_background(),ui_outline(),ui_scale(hwnd,8));
+   ns_label(dc,g_ns_authorized?"Autorização configurada":"Autorização pendente",209,358,w-457,23,g_ns_font,g_ns_authorized?RGB(100,204,145):ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
+   ns_card(dc,400,62,"Idioma",NULL);
+   ns_label(dc,"Idioma do aplicativo:",199,424,180,27,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
  }else if(g_ns_page==1){
    ns_card(dc,16,96,"Perfil de limpeza",NULL);
    ns_card(dc,124,321,"Áreas incluídas na limpeza","Clique em uma operação para ver impactos e riscos.");
@@ -645,7 +646,7 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
  ui_prepare_button(ns_button(hwnd,NS_TEST_NOTIFICATION,L"Testar notificação",0,0,184,27));
  ui_prepare_button(ns_button(hwnd,NS_COPY_HEX,L"Copiar",0,0,64,27));ui_prepare_button(g_ns_authorize);for(int i=0;i<8;++i)ui_prepare_button(GetDlgItem(hwnd,NS_PALETTE+i));for(int i=0;i<3;++i)g_ns_sliders[i]=CreateWindowExW(0,NS_SLIDER_CLASS,L"",WS_CHILD|WS_TABSTOP,0,0,1,1,hwnd,(HMENU)(INT_PTR)(NS_SLIDER+i),g_instance,(LPVOID)(INT_PTR)i);ns_status("Nenhuma alteração pendente");ns_refresh_fields();ns_layout();return 0;}
  case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(hwnd,&ps);ui_paint_buffered(hwnd,dc,&ps.rcPaint,ns_paint);EndPaint(hwnd,&ps);return 0;}case WM_ERASEBKGND:return 1;case WM_SIZE:ns_layout();return 0;
- case WM_GETMINMAXINFO:{MINMAXINFO *limits=(MINMAXINFO*)lp;RECT size={0,0,ui_scale(hwnd,800),ui_scale(hwnd,600)};AdjustWindowRectExForDpi(&size,(DWORD)GetWindowLongPtrW(hwnd,GWL_STYLE),FALSE,(DWORD)GetWindowLongPtrW(hwnd,GWL_EXSTYLE),GetDpiForWindow(hwnd));limits->ptMinTrackSize.x=size.right-size.left;limits->ptMinTrackSize.y=size.bottom-size.top;return 0;}
+ case WM_GETMINMAXINFO:{MINMAXINFO *limits=(MINMAXINFO*)lp;RECT size={0,0,ui_scale(hwnd,700),ui_scale(hwnd,510)};AdjustWindowRectExForDpi(&size,(DWORD)GetWindowLongPtrW(hwnd,GWL_STYLE),FALSE,(DWORD)GetWindowLongPtrW(hwnd,GWL_EXSTYLE),GetDpiForWindow(hwnd));limits->ptMinTrackSize.x=size.right-size.left;limits->ptMinTrackSize.y=size.bottom-size.top;return 0;}
  case WM_MOUSEWHEEL:{
     POINT point={GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};ScreenToClient(hwnd,&point);
     if(point.x<ui_scale(hwnd,177))return 0;
@@ -660,7 +661,7 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
  case WM_MEASUREITEM:{MEASUREITEMSTRUCT *item=(MEASUREITEMSTRUCT*)lp;if(item->CtlType==ODT_COMBOBOX){item->itemHeight=(UINT)ui_scale(hwnd,26);return TRUE;}break;}
  case WM_DRAWITEM:return ns_draw((DRAWITEMSTRUCT*)lp);
  case WM_CTLCOLOREDIT:case WM_CTLCOLORSTATIC:case WM_CTLCOLORLISTBOX:SetTextColor((HDC)wp,ui_text());SetBkColor((HDC)wp,ui_surface());return (LRESULT)g_ns_edit_brush;
- case WM_COMMAND:{int id=LOWORD(wp),notification=HIWORD(wp);if(g_ns_updating)return 0;if(id>=NS_NAV&&id<NS_NAV+5){ns_flush_color();g_ns_page=id-NS_NAV;ns_layout();return 0;}if(id==NS_CLOSE){SendMessageW(hwnd,WM_CLOSE,0,0);return 0;}if(id==NS_APPLY){ns_commit();return 0;}if(id==NS_OPEN_LOG){SHCreateDirectoryExW(hwnd,g_data_dir,NULL);ShellExecuteW(hwnd,L"open",g_data_dir,NULL,NULL,SW_SHOWNORMAL);return 0;}if(id==NS_DEFAULTS){ns_defaults();return 0;}
+ case WM_COMMAND:{int id=LOWORD(wp),notification=HIWORD(wp);if(g_ns_updating)return 0;if(id>=NS_NAV&&id<NS_NAV+5){ns_flush_color();int next_page=id-NS_NAV;if(next_page!=g_ns_page){g_ns_page=next_page;g_ns_page_scroll[g_ns_page]=0;}ns_layout();return 0;}if(id==NS_CLOSE){SendMessageW(hwnd,WM_CLOSE,0,0);return 0;}if(id==NS_APPLY){ns_commit();return 0;}if(id==NS_OPEN_LOG){SHCreateDirectoryExW(hwnd,g_data_dir,NULL);ShellExecuteW(hwnd,L"open",g_data_dir,NULL,NULL,SW_SHOWNORMAL);return 0;}if(id==NS_DEFAULTS){ns_defaults();return 0;}
  if(id>=NS_PROFILE_LEVE&&id<=NS_PROFILE_PERSONALIZADO){
      int profile=id-NS_PROFILE_LEVE;
      if(profile==2){g_ns_force_custom=1;ns_status("Personalizado: escolha as operações manualmente.");ns_refresh_fields();return 0;}
@@ -708,7 +709,7 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
 static void native_settings_show(HWND owner){if(g_ns_hwnd){ShowWindow(g_ns_hwnd,SW_SHOWNORMAL);SetForegroundWindow(g_ns_hwnd);return;}WNDCLASSEXW cls;memset(&cls,0,sizeof(cls));cls.cbSize=sizeof(cls);cls.hInstance=g_instance;cls.hCursor=LoadCursor(NULL,IDC_ARROW);cls.lpfnWndProc=ns_region_proc;cls.lpszClassName=NS_REGION_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_slider_proc;cls.lpszClassName=NS_SLIDER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_spinner_proc;cls.lpszClassName=NS_SPINNER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=native_settings_proc;cls.lpszClassName=NS_CLASS;cls.hIcon=LoadIconW(g_instance,MAKEINTRESOURCEW(1));RegisterClassExW(&cls);UINT dpi=owner?GetDpiForWindow(owner):96;if(!dpi)dpi=96;
  MONITORINFO mi;memset(&mi,0,sizeof(mi));mi.cbSize=sizeof(mi);
  HMONITOR mon=owner?MonitorFromWindow(owner,MONITOR_DEFAULTTONEAREST):MonitorFromPoint((POINT){0,0},MONITOR_DEFAULTTOPRIMARY);
- int cw=820,ch=620;
+ int cw=740,ch=530;
  if(GetMonitorInfoW(mon,&mi)){
     int usable_w=MulDiv(mi.rcWork.right-mi.rcWork.left,96,(int)dpi)-52;
     int usable_h=MulDiv(mi.rcWork.bottom-mi.rcWork.top,96,(int)dpi)-72;
