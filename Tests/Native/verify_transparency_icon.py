@@ -36,7 +36,7 @@ checks = {
     'popups ficam opacos e legiveis': 'OrionMemory.RoundedPopup' in draw,
     'mudanca ao vivo na janela principal': 'g_main_visual_blur!=g_settings.window_blur' in main,
     'mudanca ao vivo na janela de configuracoes': 'transparency_changed=g_ns_window_blur!=g_settings.window_blur' in settings,
-    'layout 8 controles sem mover painel de idioma': 'for(int i=0;i<8;++i)' in settings and 'ns_card(dc,366,84,"Idioma")' in settings,
+    'layout geral reorganizado e idioma preservado': 'for(int i=0;i<8;++i)' in settings and 'ns_card(dc,400,62,"Idioma"' in settings and 'g_ns_language_box' in settings,
     'continua com 30 idiomas': len(locales) == 30,
     'todas as traducoes tem a opcao': all(key in json.loads(path.read_text(encoding='utf-8')) for path in locales),
     'menu personalizado da bandeja foi preservado': 'popup_open_sub' in popup and 'tray_region_short_labels[9]' in popup,
