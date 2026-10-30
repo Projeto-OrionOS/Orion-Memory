@@ -231,11 +231,11 @@ static void ns_create_fields(void){
     {"DarkTheme","Usar tema escuro",1},
     {"WindowBlur","Usar transparência nas janelas",0}
   };
-  const int positions[]={174,48,75,300,328,102,201,228};
+  const int positions[]={174,48,75,299,327,102,201,228};
   for(int i=0;i<8;++i)ns_add(NS_FIRST+i,NS_CHECK,0,general[i].key,general[i].label,199,positions[i],555,27,NS_STRETCH,general[i].fallback);
   g_ns_authorize=ns_button(g_ns_hwnd,NS_AUTHORIZE,L"",506,344,184,29);
   ns_set_text(g_ns_authorize,"Autorizar Orion Memory");
-  g_ns_language_box=ns_add(NS_FIRST+10,NS_COMBO,0,"Language","Idioma",465,424,319,30,NS_RIGHT,0)->hwnd;
+  g_ns_language_box=ns_add(NS_FIRST+10,NS_COMBO,0,"Language","Idioma",465,429,319,30,NS_RIGHT,0)->hwnd;
   for(int i=0;i<9;++i){
     NSField *f=ns_add(NS_FIRST+20+i,NS_CHECK,1,region_keys[i],region_labels[i],0,0,580,NS_REGION_HEIGHT,NS_STRETCH,default_regions[i]);
     f->region=i;SetParent(f->hwnd,g_ns_region);
@@ -353,8 +353,8 @@ static void ns_layout(void){
  }
  ns_move(g_ns_region,195,179-scroll,width-209,254);
  ns_show(g_ns_region,g_ns_page==1&&ns_page_visible(179,254));
- ns_move(g_ns_authorize,width-225,354-scroll,198,29);
- ns_show(g_ns_authorize,g_ns_page==0&&g_ns_preview.skip_uac&&!g_ns_authorized&&ns_page_visible(354,29));
+ ns_move(g_ns_authorize,width-225,359-scroll,198,29);
+ ns_show(g_ns_authorize,g_ns_page==0&&g_ns_preview.skip_uac&&!g_ns_authorized&&ns_page_visible(359,29));
  for(int i=0;i<8;++i){HWND button=GetDlgItem(g_ns_hwnd,NS_PALETTE+i);
    ns_move(button,200+i*31,513-scroll,26,26);
    ns_show(button,g_ns_page==2&&ns_page_visible(513,26));
@@ -436,12 +436,12 @@ static void ns_paint(HWND hwnd,HDC dc){
    /* Fixed, compact general tab: all four cards fit within a 740x530 client area. */
    ns_card(dc,12,120,"Inicialização",NULL);
    ns_card(dc,142,116,"Janela e aparência",NULL);
-   ns_card(dc,268,122,"Segurança",NULL);
-   RECT status={ui_scale(hwnd,196),ui_scale(hwnd,354),client.right-ui_scale(hwnd,22),ui_scale(hwnd,383)};
+   ns_card(dc,268,125,"Segurança",NULL);
+   RECT status={ui_scale(hwnd,196),ui_scale(hwnd,359),client.right-ui_scale(hwnd,22),ui_scale(hwnd,389)};
    ui_round_border(dc,status,ui_background(),ui_outline(),ui_scale(hwnd,8));
-   ns_label(dc,g_ns_authorized?"Autorização configurada":"Autorização pendente",209,358,w-457,23,g_ns_font,g_ns_authorized?RGB(100,204,145):ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
-   ns_card(dc,400,62,"Idioma",NULL);
-   ns_label(dc,"Idioma do aplicativo:",199,424,180,27,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+   ns_label(dc,g_ns_authorized?"Autorização configurada":"Autorização pendente",209,363,w-457,23,g_ns_font,g_ns_authorized?RGB(100,204,145):ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
+   ns_card(dc,399,65,"Idioma",NULL);
+   ns_label(dc,"Idioma do aplicativo:",199,433,180,26,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
  }else if(g_ns_page==1){
    ns_card(dc,16,96,"Perfil de limpeza",NULL);
    ns_card(dc,124,321,"Áreas incluídas na limpeza","Clique em uma operação para ver impactos e riscos.");
