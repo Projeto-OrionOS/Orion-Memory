@@ -52,7 +52,7 @@ static int ns_page_visible(int y,int h){int bot=ns_view_bottom(),scroll=ns_scrol
 /* Classificacao relativa de impacto (nao e promessa de ganho de desempenho).
    0: menor impacto, 1: cautela, 2: avancado, com possivel congelamento aparente. */
 static const int ns_region_risk[9]={1,1,2,2,0,2,2,1,1};
-static const char *ns_risk_names[3]={"RECOMENDADO · MENOR IMPACTO","ATENÇÃO","AVANÇADO"};
+static const char *ns_risk_names[3]={"MENOR IMPACTO","USE COM CAUTELA","PODE TRAVAR"};
 static const char *ns_risk_long[3]={
     "Impacto geralmente menor; ainda pode gerar recarregamento de dados.",
     "Pode aumentar atividade de disco, CPU ou atrasar alguns aplicativos.",
@@ -123,7 +123,7 @@ static int ns_object_find(Json *j,int object,const char *key){char name[128];for
 static void ns_token_wide(Json *j,int token,wchar_t *to,int cap){char value[768];to[0]=0;if(json_text(j,token,value,sizeof(value)))MultiByteToWideChar(CP_UTF8,0,value,-1,to,cap);}
 static int __cdecl ns_language_order(const void *a,const void *b){const NSLanguage *one=(const NSLanguage*)a,*two=(const NSLanguage*)b;int result=CompareStringEx(L"pt-BR",NORM_IGNORECASE,one->country,-1,two->country,-1,NULL,NULL,0);if(result==CSTR_EQUAL)return wcscmp(one->code,two->code);return result-CSTR_EQUAL;}
 static void ns_load_languages(void){g_ns_language_count=0;wchar_t path[MAX_PATH];path_join(path,MAX_PATH,g_folder,L"Languages.json");char *array=read_utf8(path);if(array){size_t len=strlen(array);char *wrapped=(char*)malloc(len+16);if(wrapped){snprintf(wrapped,len+16,"{\"items\":%s}",array);Json j;if(json_init(&j,wrapped,strlen(wrapped))){int items=json_find(&j,"items");if(items>=0&&j.tokens[items].type==J_ARRAY)for(int n=items+1;n<j.tokens[items].next&&g_ns_language_count<48;n=j.tokens[n].next){if(j.tokens[n].type!=J_OBJECT)continue;NSLanguage *language=&g_ns_languages[g_ns_language_count];ns_token_wide(&j,ns_object_find(&j,n,"Code"),language->code,32);ns_token_wide(&j,ns_object_find(&j,n,"Country"),language->country,96);ns_token_wide(&j,ns_object_find(&j,n,"Name"),language->name,96);if(language->code[0]&&language->country[0])++g_ns_language_count;}}json_free(&j);free(wrapped);}free(array);}if(!g_ns_language_count){copyw(g_ns_languages[0].code,32,L"pt-BR");copyw(g_ns_languages[0].country,96,L"Brasil");copyw(g_ns_languages[0].name,96,L"Português");g_ns_language_count=1;}qsort(g_ns_languages,(size_t)g_ns_language_count,sizeof(NSLanguage),ns_language_order);}
-static void ns_fonts(void){if(g_ns_font)DeleteObject(g_ns_font);if(g_ns_bold)DeleteObject(g_ns_bold);if(g_ns_title)DeleteObject(g_ns_title);if(g_ns_edit_brush)DeleteObject(g_ns_edit_brush);g_ns_font=ui_font(g_ns_hwnd,12,FW_NORMAL);g_ns_bold=ui_font(g_ns_hwnd,12,FW_SEMIBOLD);g_ns_title=ui_font(g_ns_hwnd,17,FW_SEMIBOLD);g_ns_edit_brush=CreateSolidBrush(ui_surface());if(g_ns_spinner_brush)DeleteObject(g_ns_spinner_brush);g_ns_spinner_brush=CreateSolidBrush(ui_background());g_ns_dpi=GetDpiForWindow(g_ns_hwnd);}
+static void ns_fonts(void){if(g_ns_font)DeleteObject(g_ns_font);if(g_ns_bold)DeleteObject(g_ns_bold);if(g_ns_title)DeleteObject(g_ns_title);if(g_ns_edit_brush)DeleteObject(g_ns_edit_brush);g_ns_font=ui_font(g_ns_hwnd,13,FW_NORMAL);g_ns_bold=ui_font(g_ns_hwnd,14,FW_SEMIBOLD);g_ns_title=ui_font(g_ns_hwnd,18,FW_SEMIBOLD);g_ns_edit_brush=CreateSolidBrush(ui_surface());if(g_ns_spinner_brush)DeleteObject(g_ns_spinner_brush);g_ns_spinner_brush=CreateSolidBrush(ui_background());g_ns_dpi=GetDpiForWindow(g_ns_hwnd);}
 static HWND ns_button(HWND parent,int id,const wchar_t *label,int x,int y,int w,int h){HWND control=CreateWindowExW(0,L"BUTTON",label,WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW,ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,w),ui_scale(g_ns_hwnd,h),parent,(HMENU)(INT_PTR)id,g_instance,NULL);SendMessageW(control,WM_SETFONT,(WPARAM)g_ns_font,FALSE);ui_prepare_button(control);return control;}
 
 /* Unified numeric spinner. The Win32 EDIT remains a real editable/accessibility
@@ -313,7 +313,7 @@ static void ns_layout(void){
   int width=MulDiv(rect.right,96,(int)GetDpiForWindow(g_ns_hwnd));
   int height=MulDiv(rect.bottom,96,(int)GetDpiForWindow(g_ns_hwnd));
   int extra=width-970,scroll=ns_scroll();
-  for(int i=0;i<5;++i)ns_move(GetDlgItem(g_ns_hwnd,NS_NAV+i),16,32+i*45,176,38);
+  for(int i=0;i<5;++i)ns_move(GetDlgItem(g_ns_hwnd,NS_NAV+i),16,31+i*48,176,42);
   ns_move(GetDlgItem(g_ns_hwnd,NS_APPLY),width-122,height-49,106,36);
   ns_move(GetDlgItem(g_ns_hwnd,NS_CLOSE),width-249,height-49,114,36);
   ns_move(GetDlgItem(g_ns_hwnd,NS_DEFAULTS),width-420,height-49,158,36);
@@ -362,23 +362,48 @@ static void ns_label(HDC dc,const char *label,int x,int y,int w,int h,HFONT font
 static void ns_card(HDC dc,int y,int h,const char *title,const char *subtitle){
   RECT client;GetClientRect(g_ns_hwnd,&client);
   RECT r={ui_scale(g_ns_hwnd,209),ui_scale(g_ns_hwnd,y),client.right-ui_scale(g_ns_hwnd,17),ui_scale(g_ns_hwnd,y+h)};
+  if(g_settings.dark){RECT shadow=r;OffsetRect(&shadow,0,ui_scale(g_ns_hwnd,2));
+     ui_round(dc,shadow,RGB(28,29,32),ui_scale(g_ns_hwnd,10));}
   ui_round_border(dc,r,ui_surface(),ui_outline(),ui_scale(g_ns_hwnd,10));
+  /* One subtle top-edge highlight; avoids expensive live blur and bitmap assets. */
+  if(g_settings.dark){HPEN p=CreatePen(PS_SOLID,1,RGB(56,60,66));
+    HGDIOBJ old=SelectObject(dc,p);MoveToEx(dc,r.left+ui_scale(g_ns_hwnd,23),r.top+ui_scale(g_ns_hwnd,1),NULL);
+    LineTo(dc,r.right-ui_scale(g_ns_hwnd,24),r.top+ui_scale(g_ns_hwnd,1));SelectObject(dc,old);DeleteObject(p);}
   int w=MulDiv(client.right,96,(int)GetDpiForWindow(g_ns_hwnd));
-  ns_label(dc,title,233,y+16,w-265,26,g_ns_bold,ui_text(),DT_SINGLELINE|DT_VCENTER);
-  if(subtitle&&*subtitle)ns_label(dc,subtitle,233,y+44,w-265,28,g_ns_font,ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
+  ns_label(dc,title,233,y+14,w-265,30,g_ns_bold,ui_text(),DT_SINGLELINE|DT_VCENTER);
+  if(subtitle&&*subtitle)ns_label(dc,subtitle,233,y+44,w-265,27,g_ns_font,ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
 }
 static void ns_info_line(HDC dc,const char *title,int x,int y,int w){
   ns_label(dc,title,x,y,w,21,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
 }
 static void ns_draw_preview(HDC dc,int x,int y,int width,int light,HICON icon){
-  RECT r={ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,x+width),ui_scale(g_ns_hwnd,y+68)};
-  COLORREF bg=light?RGB(233,239,246):RGB(20,30,48);
-  ui_round_border(dc,r,bg,ui_outline(),ui_scale(g_ns_hwnd,7));
-  int icon_size=ui_scale(g_ns_hwnd,25);
-  if(icon)DrawIconEx(dc,ui_scale(g_ns_hwnd,x+12),ui_scale(g_ns_hwnd,y+26),icon,icon_size,icon_size,0,NULL,DI_NORMAL);
-  RECT label={ui_scale(g_ns_hwnd,x+52),ui_scale(g_ns_hwnd,y+27),ui_scale(g_ns_hwnd,x+width-8),ui_scale(g_ns_hwnd,y+51)};
-  ui_text_draw(dc,label,L"14:25",g_ns_font,light?RGB(26,31,38):RGB(230,236,245),DT_VCENTER|DT_SINGLELINE);
-  ns_label(dc,light?"TEMA CLARO":"TEMA ESCURO",x+12,y+4,width-24,18,g_ns_font,light?RGB(55,65,77):ui_muted(),DT_SINGLELINE);
+  RECT outer={ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,x+width),ui_scale(g_ns_hwnd,y+69)};
+  COLORREF base=light?RGB(232,237,244):RGB(19,30,50);
+  COLORREF top=light?RGB(127,172,226):RGB(25,87,163);
+  COLORREF ink=light?RGB(31,36,45):RGB(244,248,252);
+  ui_round_border(dc,outer,base,ui_outline(),ui_scale(g_ns_hwnd,7));
+  /* Decorative stripe is GDI-only, no embedded asset or new DLL. */
+  RECT stripe={outer.left+ui_scale(g_ns_hwnd,3),outer.top+ui_scale(g_ns_hwnd,3),outer.right-ui_scale(g_ns_hwnd,3),outer.top+ui_scale(g_ns_hwnd,13)};
+  ui_fill(dc,stripe,top);
+  RECT stripe2=stripe;stripe2.top+=ui_scale(g_ns_hwnd,4);stripe2.bottom=stripe2.top+ui_scale(g_ns_hwnd,4);
+  stripe2.right=outer.left+(outer.right-outer.left)*2/3;
+  ui_fill(dc,stripe2,light?RGB(174,202,238):RGB(36,119,202));
+  /* Taskbar: actual memory indicator plus minimal shell signals. */
+  ns_label(dc,"^",x+10,y+28,15,21,g_ns_bold,ink,DT_SINGLELINE|DT_CENTER|DT_VCENTER);
+  int icon_px=ui_scale(g_ns_hwnd,24);
+  if(icon)DrawIconEx(dc,ui_scale(g_ns_hwnd,x+31),ui_scale(g_ns_hwnd,y+27),icon,icon_px,icon_px,0,NULL,DI_NORMAL);
+  /* Radio waves, built from 3 lines; no glyph dependency. */
+  HPEN pen=CreatePen(PS_SOLID,max(1,ui_scale(g_ns_hwnd,1)),ink);
+  HGDIOBJ old=SelectObject(dc,pen);
+  int cx=ui_scale(g_ns_hwnd,x+68),cy=ui_scale(g_ns_hwnd,y+40);
+  MoveToEx(dc,cx-ui_scale(g_ns_hwnd,7),cy-ui_scale(g_ns_hwnd,3),NULL);
+  LineTo(dc,cx,cy+ui_scale(g_ns_hwnd,2));LineTo(dc,cx+ui_scale(g_ns_hwnd,7),cy-ui_scale(g_ns_hwnd,3));
+  MoveToEx(dc,cx-ui_scale(g_ns_hwnd,4),cy+ui_scale(g_ns_hwnd,1),NULL);
+  LineTo(dc,cx,cy+ui_scale(g_ns_hwnd,4));LineTo(dc,cx+ui_scale(g_ns_hwnd,4),cy+ui_scale(g_ns_hwnd,1));
+  SelectObject(dc,old);DeleteObject(pen);
+  ns_label(dc,"14:25",x+width-66,y+24,58,18,g_ns_font,ink,DT_RIGHT|DT_SINGLELINE);
+  ns_label(dc,"30/10",x+width-66,y+41,58,16,g_ns_font,ink,DT_RIGHT|DT_SINGLELINE);
+  ns_label(dc,light?"Claro":"Escuro",x+4,y+72,width-8,19,g_ns_font,ui_muted(),DT_CENTER|DT_SINGLELINE);
 }
 static void ns_draw_usage_meter(HDC dc,int x,int y,int w,int warning,int danger){
   int from=x;
@@ -397,10 +422,10 @@ static void ns_paint(HWND hwnd,HDC dc){
   int w=MulDiv(client.right,96,(int)GetDpiForWindow(hwnd));
   int h=MulDiv(client.bottom,96,(int)GetDpiForWindow(hwnd));
   RECT nav={ui_scale(hwnd,8),ui_scale(hwnd,10),ui_scale(hwnd,201),client.bottom-ui_scale(hwnd,64)};
-  ui_round_border(dc,nav,ui_surface(),ui_outline(),ui_scale(hwnd,10));
+  ui_round_border(dc,nav,g_settings.dark?RGB(34,36,40):RGB(255,255,255),ui_outline(),ui_scale(hwnd,10));
   int saved=SaveDC(dc);
   IntersectClipRect(dc,ui_scale(hwnd,205),ui_scale(hwnd,10),client.right-ui_scale(hwnd,12),ui_scale(hwnd,ns_view_bottom()));
-  SetViewportOrgEx(dc,0,-ui_scale(hwnd,ns_scroll()),NULL);
+  POINT previous_origin;GetViewportOrgEx(dc,&previous_origin);SetViewportOrgEx(dc,previous_origin.x,previous_origin.y-ui_scale(hwnd,ns_scroll()),NULL);
   if(g_ns_page==0){
     ns_card(dc,18,194,"Inicialização","Defina como o Orion Memory inicia junto com o Windows.");
     ns_info_line(dc,"Inicia automaticamente com o sistema.",263,113,w-300);
@@ -421,13 +446,17 @@ static void ns_paint(HWND hwnd,HDC dc){
   }
   else if(g_ns_page==1){
     ns_card(dc,18,138,"Perfil de limpeza","Escolha um perfil para selecionar as operações manuais.");
-    ns_card(dc,167,419,"Áreas incluídas na limpeza","Nove operações com riscos diferentes. Passe o mouse para ver os detalhes.");
+    ns_card(dc,167,419,"Áreas incluídas na limpeza","Nove operações manuais. Selecione uma linha para entender seus riscos.");
+    ns_label(dc,"MENOR IMPACTO",239,235,138,18,g_ns_font,ns_risk_color(0),DT_SINGLELINE);
+    ns_label(dc,"CAUTELA",394,235,112,18,g_ns_font,ns_risk_color(1),DT_SINGLELINE);
+    ns_label(dc,"PODE TRAVAR",513,235,154,18,g_ns_font,ns_risk_color(2),DT_SINGLELINE);
     ns_card(dc,598,137,"Informações sobre a limpeza","Impacto possível da operação selecionada (sem promessa de mais FPS).");
     int selected=g_ns_region_hint>=0&&g_ns_region_hint<9?g_ns_region_hint:4;
     int risk=ns_region_risk[selected];
     ns_label(dc,region_labels[selected],234,665,w-315,23,g_ns_bold,ui_text(),DT_SINGLELINE|DT_END_ELLIPSIS);
     ns_label(dc,ns_risk_names[risk],w-192,665,157,23,g_ns_bold,ns_risk_color(risk),DT_RIGHT|DT_SINGLELINE);
-    ns_label(dc,ns_region_details[selected],234,694,w-275,36,g_ns_font,ui_muted(),DT_WORDBREAK);
+    ns_label(dc,ns_region_details[selected],234,692,w-275,33,g_ns_font,ui_muted(),DT_WORDBREAK);
+    if(risk==2)ns_label(dc,"Salve o trabalho antes de executar.",234,724,w-300,19,g_ns_font,ns_risk_color(2),DT_SINGLELINE);
     ns_card(dc,744,75,"Atalho global",NULL);
     ns_label(dc,"Liberar memória manualmente com uma combinação de teclas.",234,775,446,21,g_ns_font,ui_muted(),DT_SINGLELINE);
   }
@@ -475,8 +504,8 @@ static void ns_paint(HWND hwnd,HDC dc){
     RECT bubble={ui_scale(hwnd,620),ui_scale(hwnd,574),client.right-ui_scale(hwnd,28),ui_scale(hwnd,704)};
     ui_round_border(dc,bubble,ui_background(),ui_outline(),ui_scale(hwnd,8));
     ns_label(dc,"Orion Memory",637,589,w-684,25,g_ns_bold,ui_text(),DT_SINGLELINE);
-    ns_label(dc,"Limpeza concluída (exemplo)",637,623,w-684,25,g_ns_font,ui_text(),DT_SINGLELINE);
-    ns_label(dc,"Nenhuma limpeza foi executada.",637,659,w-684,25,g_ns_font,ui_muted(),DT_SINGLELINE);
+    ns_label(dc,"Limpeza concluída (exemplo)",637,623,w-684,25,g_ns_bold,ui_text(),DT_SINGLELINE|DT_END_ELLIPSIS);
+    ns_label(dc,"Nenhuma limpeza foi executada.",637,659,w-684,25,g_ns_font,ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS);
     ns_label(dc,"Teste a notificação sem alterar a memória do computador.",438,716,190,40,g_ns_font,ui_muted(),DT_WORDBREAK);
   }
   else{
@@ -500,7 +529,7 @@ static void ns_paint(HWND hwnd,HDC dc){
       RECT area={ui_scale(hwnd,238),ui_scale(hwnd,706),client.right-ui_scale(hwnd,30),ui_scale(hwnd,738)};
       ui_text_draw(dc,area,measure,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
     }
-    ns_label(dc,"A instalação não exige DLLs de terceiros.",238,755,w-270,25,g_ns_font,ui_muted(),DT_SINGLELINE);
+    ns_label(dc,"Sem componentes gráficos externos.",238,755,w-270,25,g_ns_font,ui_muted(),DT_SINGLELINE);
   }
   RestoreDC(dc,saved);
   /* Always-fixed bottom bar; no decorative icons or bitmaps. */
@@ -508,8 +537,8 @@ static void ns_paint(HWND hwnd,HDC dc){
   ui_fill(dc,footer,ui_surface());
   HPEN line=CreatePen(PS_SOLID,1,ui_outline());HGDIOBJ old=SelectObject(dc,line);
   MoveToEx(dc,0,footer.top,NULL);LineTo(dc,footer.right,footer.top);SelectObject(dc,old);DeleteObject(line);
-  RECT message={ui_scale(hwnd,20),footer.top,client.right-ui_scale(hwnd,440),footer.bottom};
-  ui_text_draw(dc,message,g_ns_status,g_ns_font,ns_is_dirty()?ui_accent():ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
+  RECT message={ui_scale(hwnd,22),footer.top,client.right-ui_scale(hwnd,430),footer.bottom};
+  ui_text_draw(dc,message,g_ns_status,g_ns_font,ns_is_dirty()?ui_accent():ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
   /* Fixed, discreet scroll indicator (GDI only). */
   int max_scroll=ns_scroll_max();
   if(max_scroll>0){
@@ -523,7 +552,7 @@ static void ns_paint(HWND hwnd,HDC dc){
 
 static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw->hDC;RECT r=draw->rcItem;ui_fill(dc,r,(id==NS_CLOSE||id==NS_DEFAULTS||id==NS_APPLY)?ui_background():ui_surface());NSField *f=ns_field(id);wchar_t text[320];GetWindowTextW(draw->hwndItem,text,320);
  if(draw->CtlType==ODT_COMBOBOX){int selected=(draw->itemState&ODS_SELECTED)!=0;ui_round(dc,r,selected?ui_selection_bg():ui_surface(),ui_scale(g_ns_hwnd,4));if(draw->itemID!=(UINT)-1)SendMessageW(draw->hwndItem,CB_GETLBTEXT,draw->itemID,(LPARAM)text);r.left+=ui_scale(g_ns_hwnd,8);ui_text_draw(dc,r,text,g_ns_font,selected?ui_selection_fg():ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);return TRUE;}
- if(id>=NS_NAV&&id<NS_NAV+5){int active=id==NS_NAV+g_ns_page;ui_round(dc,r,active?ui_selection_bg():GetPropW(draw->hwndItem,L"Orion.Hover")?(g_settings.dark?RGB(50,50,50):RGB(246,246,246)):ui_surface(),ui_scale(g_ns_hwnd,5));if(active){RECT marker={r.left+ui_scale(g_ns_hwnd,3),r.top+ui_scale(g_ns_hwnd,8),r.left+ui_scale(g_ns_hwnd,6),r.bottom-ui_scale(g_ns_hwnd,8)};ui_round(dc,marker,ui_accent(),ui_scale(g_ns_hwnd,2));}r.left+=ui_scale(g_ns_hwnd,12);ui_text_draw(dc,r,text,g_ns_font,ui_selection_fg(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);return TRUE;}
+ if(id>=NS_NAV&&id<NS_NAV+5){int active=id==NS_NAV+g_ns_page;ui_round(dc,r,active?ui_selection_bg():GetPropW(draw->hwndItem,L"Orion.Hover")?(g_settings.dark?RGB(50,50,50):RGB(246,246,246)):ui_surface(),ui_scale(g_ns_hwnd,5));if(active){RECT marker={r.left+ui_scale(g_ns_hwnd,3),r.top+ui_scale(g_ns_hwnd,8),r.left+ui_scale(g_ns_hwnd,6),r.bottom-ui_scale(g_ns_hwnd,8)};ui_round(dc,marker,ui_accent(),ui_scale(g_ns_hwnd,2));}r.left+=ui_scale(g_ns_hwnd,18);ui_text_draw(dc,r,text,g_ns_font,ui_selection_fg(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);return TRUE;}
  if(id==NS_AUTHORIZE){
     ui_fill(dc,r,ui_surface());
     RECT button=r;InflateRect(&button,-1,-1);
@@ -534,7 +563,7 @@ static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw
     return TRUE;
  }
  if(id>=NS_PALETTE&&id<NS_PALETTE+8){ui_round(dc,r,ns_palette[id-NS_PALETTE],ui_scale(g_ns_hwnd,3));return TRUE;}
- if(f&&(f->kind==NS_CHECK||f->kind==NS_COLOR)){int checked=f->kind==NS_COLOR?id==NS_COLOR_ROLE+g_ns_color_role:f->checked;ui_round(dc,r,f->kind==NS_COLOR&&checked?ui_selection_bg():ui_surface(),ui_scale(g_ns_hwnd,5));int sz=ui_scale(g_ns_hwnd,17),left=r.left+ui_scale(g_ns_hwnd,2),top=r.top+(r.bottom-r.top-sz)/2;RECT box={left,top,left+sz,top+sz};ui_round_border(dc,box,f->kind==NS_COLOR?g_ns_colors[id-NS_COLOR_ROLE]:checked?ui_accent():ui_background(),(draw->itemState&ODS_FOCUS)?ui_focus_outline():checked?ui_accent():ui_outline(),ui_scale(g_ns_hwnd,4));if(checked&&f->kind==NS_CHECK){HPEN pen=CreatePen(PS_SOLID,max(1,ui_scale(g_ns_hwnd,2)),g_settings.dark?RGB(15,25,35):RGB(255,255,255));HGDIOBJ old=SelectObject(dc,pen);MoveToEx(dc,left+ui_scale(g_ns_hwnd,4),top+ui_scale(g_ns_hwnd,8),NULL);LineTo(dc,left+ui_scale(g_ns_hwnd,7),top+ui_scale(g_ns_hwnd,11));LineTo(dc,left+ui_scale(g_ns_hwnd,13),top+ui_scale(g_ns_hwnd,5));SelectObject(dc,old);DeleteObject(pen);}r.left=box.right+ui_scale(g_ns_hwnd,8);
+ if(f&&(f->kind==NS_CHECK||f->kind==NS_COLOR)){int checked=f->kind==NS_COLOR?id==NS_COLOR_ROLE+g_ns_color_role:f->checked;ui_round(dc,r,f->kind==NS_COLOR&&checked?ui_selection_bg():(f->region>=0&&f->region==g_ns_region_hint?ui_selection_bg():ui_surface()),ui_scale(g_ns_hwnd,5));int sz=ui_scale(g_ns_hwnd,19),left=r.left+ui_scale(g_ns_hwnd,2),top=r.top+(r.bottom-r.top-sz)/2;RECT box={left,top,left+sz,top+sz};ui_round_border(dc,box,f->kind==NS_COLOR?g_ns_colors[id-NS_COLOR_ROLE]:checked?ui_accent():ui_background(),(draw->itemState&ODS_FOCUS)?ui_focus_outline():checked?ui_accent():ui_outline(),ui_scale(g_ns_hwnd,4));if(checked&&f->kind==NS_CHECK){HPEN pen=CreatePen(PS_SOLID,max(1,ui_scale(g_ns_hwnd,2)),g_settings.dark?RGB(15,25,35):RGB(255,255,255));HGDIOBJ old=SelectObject(dc,pen);MoveToEx(dc,left+ui_scale(g_ns_hwnd,4),top+ui_scale(g_ns_hwnd,8),NULL);LineTo(dc,left+ui_scale(g_ns_hwnd,7),top+ui_scale(g_ns_hwnd,11));LineTo(dc,left+ui_scale(g_ns_hwnd,13),top+ui_scale(g_ns_hwnd,5));SelectObject(dc,old);DeleteObject(pen);}r.left=box.right+ui_scale(g_ns_hwnd,8);
  if(f->region>=0){
     int risk=ns_region_risk[f->region];
     int badgeWidth=ui_scale(g_ns_hwnd,111),detailWidth=ui_scale(g_ns_hwnd,208);
@@ -544,7 +573,9 @@ static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw
     RECT detail=r;detail.left=name.right+ui_scale(g_ns_hwnd,5);detail.right=badge.left-ui_scale(g_ns_hwnd,6);
     wchar_t desc[160];translate(ns_region_short[f->region],desc,160);
     ui_text_draw(dc,detail,desc,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
-    ui_round(dc,badge,ui_background(),ui_scale(g_ns_hwnd,7));
+    COLORREF badge_bg=risk==0?RGB(29,64,49):risk==1?RGB(65,52,30):RGB(70,35,40);
+    if(!g_settings.dark)badge_bg=risk==0?RGB(217,246,227):risk==1?RGB(250,237,200):RGB(253,222,226);
+    ui_round(dc,badge,badge_bg,ui_scale(g_ns_hwnd,8));
     const wchar_t *tag=risk==0?L"Recomendado":risk==1?L"Cautela":L"Pode travar";
     ui_text_draw(dc,badge,tag,g_ns_font,ns_risk_color(risk),DT_CENTER|DT_SINGLELINE|DT_VCENTER);
  }else ui_text_draw(dc,r,text,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);
@@ -552,18 +583,18 @@ static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw
  if((id>=NS_NUMBER_UP&&id<NS_NUMBER_UP+g_ns_count)||(id>=NS_NUMBER_DOWN&&id<NS_NUMBER_DOWN+g_ns_count)){ui_round(dc,r,GetPropW(draw->hwndItem,L"Orion.Hover")?ui_selection_bg():ui_surface(),ui_scale(g_ns_hwnd,3));ui_text_draw(dc,r,text,g_ns_font,ui_muted(),DT_CENTER|DT_SINGLELINE|DT_VCENTER);return TRUE;}
  if(id>=NS_PROFILE_LEVE&&id<=NS_PROFILE_PERSONALIZADO){
     int selected=ns_profile_selected()==id-NS_PROFILE_LEVE;
-    ui_round_border(dc,r,selected?ui_selection_bg():ui_surface(),selected?ui_accent():ui_outline(),ui_scale(g_ns_hwnd,6));
+    ui_round_border(dc,r,selected?ui_selection_bg():ui_background(),selected?ui_accent():ui_outline(),ui_scale(g_ns_hwnd,8));
     RECT name=r;name.bottom=r.top+(r.bottom-r.top)*2/3;
     ui_text_draw(dc,name,text,g_ns_bold,ui_text(),DT_SINGLELINE|DT_VCENTER|DT_CENTER);
     RECT subtitle=r;subtitle.top=name.bottom-ui_scale(g_ns_hwnd,4);
-    const wchar_t *hint=id==NS_PROFILE_LEVE?L"Menor impacto":id==NS_PROFILE_EQUILIBRADO?L"Seleção equilibrada":L"Seleção manual";
+    const wchar_t *hint=id==NS_PROFILE_LEVE?L"Menor impacto":id==NS_PROFILE_EQUILIBRADO?L"Recomendado · manual":L"Escolha cada operação";
     ui_text_draw(dc,subtitle,hint,g_ns_font,ui_muted(),DT_SINGLELINE|DT_CENTER|DT_VCENTER);
     return TRUE;
  }
  if(id==NS_APPLY){
    int enabled=IsWindowEnabled(draw->hwndItem);
-   ui_round_border(dc,r,enabled?ui_selection_bg():ui_surface(),enabled?ui_accent():ui_outline(),ui_scale(g_ns_hwnd,6));
-   ui_text_draw(dc,r,text,g_ns_font,enabled?ui_text():ui_muted(),DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+   ui_round_border(dc,r,enabled?RGB(7,99,203):ui_surface(),enabled?RGB(64,157,244):ui_outline(),ui_scale(g_ns_hwnd,7));
+   ui_text_draw(dc,r,text,g_ns_font,enabled?RGB(255,255,255):ui_muted(),DT_CENTER|DT_VCENTER|DT_SINGLELINE);
    return TRUE;
  }ui_draw_button(draw);return TRUE;}
 static int ns_hex_color(const wchar_t *input,COLORREF *color){const wchar_t *p=input;if(*p=='#')++p;if(wcslen(p)!=6)return 0;unsigned value=0;for(int i=0;i<6;++i){int h=p[i]>='0'&&p[i]<='9'?p[i]-'0':p[i]>='a'&&p[i]<='f'?p[i]-'a'+10:p[i]>='A'&&p[i]<='F'?p[i]-'A'+10:-1;if(h<0)return 0;value=(value<<4)|(unsigned)h;}*color=RGB((value>>16)&255,(value>>8)&255,value&255);return 1;}
@@ -584,7 +615,12 @@ static LRESULT CALLBACK ns_region_proc(HWND hwnd,UINT message,WPARAM wp,LPARAM l
  case WM_LBUTTONUP:if(GetCapture()==hwnd)ReleaseCapture();g_ns_region_drag=0;return 0;case WM_CAPTURECHANGED:g_ns_region_drag=0;return 0;
  case WM_KEYDOWN:if(wp==VK_HOME)ns_region_set_scroll(hwnd,0);else if(wp==VK_END)ns_region_set_scroll(hwnd,ns_region_range(hwnd));else if(wp==VK_UP||wp==VK_DOWN)ns_region_set_scroll(hwnd,g_ns_region_scroll+(wp==VK_DOWN?NS_REGION_ROW:-NS_REGION_ROW));else if(wp==VK_PRIOR||wp==VK_NEXT)ns_region_set_scroll(hwnd,g_ns_region_scroll+(wp==VK_NEXT?130:-130));return 0;
  case WM_GETDLGCODE:return DLGC_WANTARROWS;case WM_DRAWITEM:return ns_draw((DRAWITEMSTRUCT*)lp);case WM_COMMAND:return SendMessageW(g_ns_hwnd,message,wp,lp);
- case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(hwnd,&ps);RECT r;GetClientRect(hwnd,&r);ui_fill(dc,r,ui_surface());if(ns_region_range(hwnd)>0){RECT track,thumb;ns_region_geometry(hwnd,&track,&thumb);ui_round(dc,track,ui_outline(),ui_scale(hwnd,2));ui_round(dc,thumb,g_ns_region_drag?ui_accent():ui_muted(),ui_scale(hwnd,2));}EndPaint(hwnd,&ps);return 0;}
+ case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(hwnd,&ps);RECT r;GetClientRect(hwnd,&r);ui_fill(dc,r,ui_surface());
+     HPEN lines=CreatePen(PS_SOLID,1,ui_outline());HGDIOBJ saved=SelectObject(dc,lines);
+     for(int i=1;i<9;++i){int py=ui_scale(hwnd,i*NS_REGION_ROW-g_ns_region_scroll);
+       if(py>0&&py<r.bottom){MoveToEx(dc,ui_scale(hwnd,34),py,NULL);LineTo(dc,r.right-ui_scale(hwnd,16),py);}}
+     SelectObject(dc,saved);DeleteObject(lines);
+     if(ns_region_range(hwnd)>0){RECT track,thumb;ns_region_geometry(hwnd,&track,&thumb);ui_round(dc,track,ui_outline(),ui_scale(hwnd,2));ui_round(dc,thumb,g_ns_region_drag?ui_accent():ui_muted(),ui_scale(hwnd,2));}EndPaint(hwnd,&ps);return 0;}
  case WM_ERASEBKGND:return 1;}return DefWindowProcW(hwnd,message,wp,lp);}
 static void ns_slider_set(HWND hwnd,int channel,int x){RECT r;GetClientRect(hwnd,&r);int left=ui_scale(hwnd,19),right=r.right-ui_scale(hwnd,35);int value=right>left?clampi(MulDiv(x-left,255,right-left),0,255):0;COLORREF c=g_ns_colors[g_ns_color_role];int rgb[]={GetRValue(c),GetGValue(c),GetBValue(c)};if(rgb[channel]==value)return;rgb[channel]=value;g_ns_colors[g_ns_color_role]=RGB(rgb[0],rgb[1],rgb[2]);g_ns_color_dirty=1;ns_color_text();SetTimer(g_ns_hwnd,NS_COLOR_TIMER,100,NULL);}
 static LRESULT CALLBACK ns_slider_proc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp){int channel=(int)(INT_PTR)GetWindowLongPtrW(hwnd,GWLP_USERDATA);switch(message){case WM_CREATE:SetWindowLongPtrW(hwnd,GWLP_USERDATA,(LONG_PTR)((CREATESTRUCTW*)lp)->lpCreateParams);return 0;case WM_LBUTTONDOWN:SetFocus(hwnd);SetCapture(hwnd);ns_slider_set(hwnd,channel,GET_X_LPARAM(lp));return 0;case WM_MOUSEMOVE:if(GetCapture()==hwnd)ns_slider_set(hwnd,channel,GET_X_LPARAM(lp));return 0;case WM_LBUTTONUP:if(GetCapture()==hwnd)ReleaseCapture();ns_flush_color();return 0;case WM_CAPTURECHANGED:ns_flush_color();return 0;case WM_KEYDOWN:if(wp==VK_LEFT||wp==VK_RIGHT){COLORREF c=g_ns_colors[g_ns_color_role];int rgb[]={GetRValue(c),GetGValue(c),GetBValue(c)};rgb[channel]=clampi(rgb[channel]+(wp==VK_RIGHT?1:-1),0,255);g_ns_colors[g_ns_color_role]=RGB(rgb[0],rgb[1],rgb[2]);g_ns_color_dirty=1;ns_color_text();ns_flush_color();return 0;}break;case WM_GETDLGCODE:return DLGC_WANTARROWS;case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(hwnd,&ps);RECT r;GetClientRect(hwnd,&r);HBRUSH b=CreateSolidBrush(ui_surface());FillRect(dc,&r,b);DeleteObject(b);COLORREF c=g_ns_colors[g_ns_color_role];int values[]={GetRValue(c),GetGValue(c),GetBValue(c)},value=values[channel],left=ui_scale(hwnd,19),right=r.right-ui_scale(hwnd,35),cy=r.bottom/2;RECT lane={left,cy-ui_scale(hwnd,2),right,cy+ui_scale(hwnd,2)};ui_round(dc,lane,ui_outline(),ui_scale(hwnd,2));int thumb=left+MulDiv(value,max(1,right-left),255);lane.right=thumb;ui_round(dc,lane,ui_accent(),ui_scale(hwnd,2));RECT knob={thumb-ui_scale(hwnd,5),cy-ui_scale(hwnd,5),thumb+ui_scale(hwnd,5),cy+ui_scale(hwnd,5)};ui_round(dc,knob,ui_accent(),ui_scale(hwnd,5));wchar_t letter[2]={(wchar_t)(channel==0?'R':channel==1?'G':'B'),0},number[8];swprintf(number,8,L"%d",value);RECT label=r;label.right=left-ui_scale(hwnd,3);ui_text_draw(dc,label,letter,g_ns_font,ui_text(),DT_VCENTER|DT_SINGLELINE);label.left=right+ui_scale(hwnd,7);label.right=r.right;ui_text_draw(dc,label,number,g_ns_font,ui_muted(),DT_RIGHT|DT_VCENTER|DT_SINGLELINE);EndPaint(hwnd,&ps);return 0;}case WM_ERASEBKGND:return 1;}return DefWindowProcW(hwnd,message,wp,lp);}
@@ -701,7 +737,18 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
  case WM_CLOSE:DestroyWindow(hwnd);return 0;
  case WM_DESTROY:KillTimer(hwnd,NS_COLOR_TIMER);free(g_ns_draft);free(g_ns_baseline);g_ns_draft=g_ns_baseline=NULL;ui_release_text_fonts();if(g_ns_font)DeleteObject(g_ns_font);if(g_ns_bold)DeleteObject(g_ns_bold);if(g_ns_title)DeleteObject(g_ns_title);if(g_ns_edit_brush)DeleteObject(g_ns_edit_brush);if(g_ns_spinner_brush)DeleteObject(g_ns_spinner_brush);g_ns_font=g_ns_bold=g_ns_title=NULL;g_ns_edit_brush=g_ns_spinner_brush=NULL;g_ns_hwnd=NULL;g_ns_region=NULL;g_ns_count=0;return 0;
  }return DefWindowProcW(hwnd,message,wp,lp);}
-static void native_settings_show(HWND owner){if(g_ns_hwnd){ShowWindow(g_ns_hwnd,SW_SHOWNORMAL);SetForegroundWindow(g_ns_hwnd);return;}WNDCLASSEXW cls;memset(&cls,0,sizeof(cls));cls.cbSize=sizeof(cls);cls.hInstance=g_instance;cls.hCursor=LoadCursor(NULL,IDC_ARROW);cls.lpfnWndProc=ns_region_proc;cls.lpszClassName=NS_REGION_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_slider_proc;cls.lpszClassName=NS_SLIDER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_spinner_proc;cls.lpszClassName=NS_SPINNER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=native_settings_proc;cls.lpszClassName=NS_CLASS;cls.hIcon=LoadIconW(g_instance,MAKEINTRESOURCEW(1));RegisterClassExW(&cls);UINT dpi=owner?GetDpiForWindow(owner):96;if(!dpi)dpi=96;RECT bounds={0,0,MulDiv(970,(int)dpi,96),MulDiv(760,(int)dpi,96)};DWORD style=(WS_OVERLAPPEDWINDOW&~WS_MAXIMIZEBOX)|WS_CLIPCHILDREN;AdjustWindowRectExForDpi(&bounds,style,FALSE,0,dpi);HWND window=CreateWindowExW(0,NS_CLASS,L"Configurações — Orion Memory",style,CW_USEDEFAULT,CW_USEDEFAULT,bounds.right-bounds.left,bounds.bottom-bounds.top,owner,NULL,g_instance,NULL);if(window){ui_center(window,owner);ui_apply_window(window);ShowWindow(window,SW_SHOW);RedrawWindow(window,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);}}
+static void native_settings_show(HWND owner){if(g_ns_hwnd){ShowWindow(g_ns_hwnd,SW_SHOWNORMAL);SetForegroundWindow(g_ns_hwnd);return;}WNDCLASSEXW cls;memset(&cls,0,sizeof(cls));cls.cbSize=sizeof(cls);cls.hInstance=g_instance;cls.hCursor=LoadCursor(NULL,IDC_ARROW);cls.lpfnWndProc=ns_region_proc;cls.lpszClassName=NS_REGION_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_slider_proc;cls.lpszClassName=NS_SLIDER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_spinner_proc;cls.lpszClassName=NS_SPINNER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=native_settings_proc;cls.lpszClassName=NS_CLASS;cls.hIcon=LoadIconW(g_instance,MAKEINTRESOURCEW(1));RegisterClassExW(&cls);UINT dpi=owner?GetDpiForWindow(owner):96;if(!dpi)dpi=96;
+ MONITORINFO mi;memset(&mi,0,sizeof(mi));mi.cbSize=sizeof(mi);
+ HMONITOR mon=owner?MonitorFromWindow(owner,MONITOR_DEFAULTTONEAREST):MonitorFromPoint((POINT){0,0},MONITOR_DEFAULTTOPRIMARY);
+ int cw=1060,ch=865;
+ if(GetMonitorInfoW(mon,&mi)){
+    int usable_w=MulDiv(mi.rcWork.right-mi.rcWork.left,96,(int)dpi)-52;
+    int usable_h=MulDiv(mi.rcWork.bottom-mi.rcWork.top,96,(int)dpi)-72;
+    if(usable_w<cw)cw=max(760,usable_w);
+    if(usable_h<ch)ch=max(525,usable_h);
+ }
+ RECT bounds={0,0,MulDiv(cw,(int)dpi,96),MulDiv(ch,(int)dpi,96)};
+ DWORD style=WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN;AdjustWindowRectExForDpi(&bounds,style,FALSE,0,dpi);HWND window=CreateWindowExW(0,NS_CLASS,L"Configurações — Orion Memory",style,CW_USEDEFAULT,CW_USEDEFAULT,bounds.right-bounds.left,bounds.bottom-bounds.top,owner,NULL,g_instance,NULL);if(window){ui_center(window,owner);ui_apply_window(window);ShowWindow(window,SW_SHOW);RedrawWindow(window,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);}}
 static void native_settings_refresh(void){if(g_ns_hwnd)PostMessageW(g_ns_hwnd,NS_REFRESH,0,0);}
 static void native_settings_close(void){if(g_ns_hwnd)SendMessageW(g_ns_hwnd,WM_CLOSE,0,0);}
 static int native_settings_message(MSG *message){return g_ns_hwnd&&(message->hwnd==g_ns_hwnd||IsChild(g_ns_hwnd,message->hwnd))&&IsDialogMessageW(g_ns_hwnd,message);}
