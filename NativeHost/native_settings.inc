@@ -517,7 +517,7 @@ static void ns_paint(HWND hwnd,HDC dc){
  }
 }
 
-static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw->hDC;RECT r=draw->rcItem;ui_fill(dc,r,(id==NS_CLOSE||id==NS_DEFAULTS||id==NS_APPLY)?ui_background():ui_surface());NSField *f=ns_field(id);wchar_t text[320];GetWindowTextW(draw->hwndItem,text,320);
+static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw->hDC;RECT r=draw->rcItem;ui_fill(dc,r,(id>=NS_NAV&&id<NS_NAV+5)?(g_settings.dark?RGB(34,36,39):RGB(255,255,255)):(id==NS_CLOSE||id==NS_DEFAULTS||id==NS_APPLY)?ui_background():ui_surface());NSField *f=ns_field(id);wchar_t text[320];GetWindowTextW(draw->hwndItem,text,320);
  if(draw->CtlType==ODT_COMBOBOX){int selected=(draw->itemState&ODS_SELECTED)!=0;ui_round(dc,r,selected?ui_selection_bg():ui_surface(),ui_scale(g_ns_hwnd,4));if(draw->itemID!=(UINT)-1)SendMessageW(draw->hwndItem,CB_GETLBTEXT,draw->itemID,(LPARAM)text);r.left+=ui_scale(g_ns_hwnd,8);ui_text_draw(dc,r,text,g_ns_font,selected?ui_selection_fg():ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);return TRUE;}
  if(id>=NS_NAV&&id<NS_NAV+5){int active=id==NS_NAV+g_ns_page;ui_round(dc,r,active?ui_selection_bg():GetPropW(draw->hwndItem,L"Orion.Hover")?(g_settings.dark?RGB(49,51,55):RGB(246,246,246)):(g_settings.dark?RGB(34,36,39):ui_surface()),ui_scale(g_ns_hwnd,8));if(active){RECT marker={r.left+ui_scale(g_ns_hwnd,3),r.top+ui_scale(g_ns_hwnd,8),r.left+ui_scale(g_ns_hwnd,6),r.bottom-ui_scale(g_ns_hwnd,8)};ui_round(dc,marker,ui_accent(),ui_scale(g_ns_hwnd,2));}r.left+=ui_scale(g_ns_hwnd,18);ui_text_draw(dc,r,text,g_ns_font,ui_selection_fg(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);return TRUE;}
  if(id==NS_AUTHORIZE){
