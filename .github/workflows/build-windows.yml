@@ -22,9 +22,13 @@ jobs:
         run: |
           python Tests/Native/revisao_qualidade.py
           python Tests/Native/verify_locales.py
+      - name: Preparar Zig 0.15.2
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
       - name: Compilar e testar com Zig oficial
         shell: pwsh
-        run: ./scripts/Build-Native.ps1 -InstallZig -Runtime win-x64
+        run: ./scripts/Build-Native.ps1 -NoDownload -Runtime win-x64
       - name: Publicar arquivo .zip pronto para usar
         uses: actions/upload-artifact@v4
         with:
