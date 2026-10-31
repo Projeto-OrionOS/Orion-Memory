@@ -28,7 +28,10 @@ jobs:
           version: 0.15.2
       - name: Compilar e testar com Zig oficial
         shell: pwsh
-        run: ./scripts/Build-Native.ps1 -NoDownload -Runtime win-x64
+        run: |
+          $zig = (Get-Command zig -ErrorAction Stop).Source
+          & $zig version
+          ./scripts/Build-Native.ps1 -NoDownload -ZigPath $zig -Runtime win-x64
       - name: Publicar arquivo .zip pronto para usar
         uses: actions/upload-artifact@v4
         with:
