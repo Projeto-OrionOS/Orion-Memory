@@ -1,13 +1,13 @@
 /* Shared light GDI primitives. Returned fonts belong to the caller. */
 static int ui_scale(HWND window,int value){UINT dpi=window?GetDpiForWindow(window):96;return MulDiv(value,(int)(dpi?dpi:96),96);}
 static HFONT ui_font(HWND window,int pixels,int weight){return CreateFontW(-ui_scale(window,pixels),0,0,0,weight,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_TT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");}
-static COLORREF ui_background(void){return g_settings.dark?RGB(31,31,31):RGB(243,243,243);}
-static COLORREF ui_surface(void){return g_settings.dark?RGB(42,42,42):RGB(255,255,255);}
+static COLORREF ui_background(void){return g_settings.dark?RGB(32,32,32):RGB(243,243,243);}
+static COLORREF ui_surface(void){return g_settings.dark?RGB(40,41,44):RGB(255,255,255);}
 static COLORREF ui_text(void){return g_settings.dark?RGB(245,245,245):RGB(26,26,26);}
-static COLORREF ui_muted(void){return g_settings.dark?RGB(187,187,187):RGB(85,85,85);}
-static COLORREF ui_accent(void){return g_settings.dark?RGB(96,205,255):RGB(0,103,192);}
-static COLORREF ui_outline(void){return g_settings.dark?RGB(62,62,62):RGB(219,219,219);}
-static COLORREF ui_selection_bg(void){return g_settings.dark?RGB(44,58,73):RGB(224,237,250);}
+static COLORREF ui_muted(void){return g_settings.dark?RGB(173,183,196):RGB(85,85,85);}
+static COLORREF ui_accent(void){return g_settings.dark?RGB(81,187,255):RGB(0,103,192);}
+static COLORREF ui_outline(void){return g_settings.dark?RGB(61,65,72):RGB(219,219,219);}
+static COLORREF ui_selection_bg(void){return g_settings.dark?RGB(29,60,91):RGB(224,237,250);}
 static COLORREF ui_selection_fg(void){return ui_text();}
 static COLORREF ui_focus_outline(void){return g_settings.dark?RGB(94,129,155):RGB(85,135,180);}
 static void ui_fill(HDC dc,RECT rectangle,COLORREF color){HBRUSH brush=CreateSolidBrush(color);FillRect(dc,&rectangle,brush);DeleteObject(brush);}
