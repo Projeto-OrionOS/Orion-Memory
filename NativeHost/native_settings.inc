@@ -26,6 +26,7 @@
 #define NS_NUMBER_DOWN 5450
 #define NS_COLOR_TIMER 91
 #define NS_REFRESH (WM_APP+72)
+#define NS_POSITION_LANGUAGE_POPUP (WM_APP+75)
 #define NS_REGION_ROW 34
 #define NS_REGION_HEIGHT 33
 #define NS_REGION_CONTENT (9*NS_REGION_ROW)
@@ -44,9 +45,9 @@ static int g_ns_force_custom=0;
 /* 5 independently scrollable content panes; title/menu/footer remain stationary. */
 static int g_ns_page; /* tentative declaration; defined alongside the settings globals. */
 static int g_ns_page_scroll[5]={0,0,0,0,0};
-static const int g_ns_page_bottom[5]={459,646,641,540,537};
+static const int g_ns_page_bottom[5]={395,646,641,540,537};
 static int ns_view_bottom(void){if(!g_ns_hwnd)return 556;RECT r;GetClientRect(g_ns_hwnd,&r);return MulDiv(r.bottom,96,(int)GetDpiForWindow(g_ns_hwnd))-63;}
-static int ns_scroll_max(void){return max(0,g_ns_page_bottom[g_ns_page]-ns_view_bottom()+7);}
+static int ns_scroll_max(void){return max(0,g_ns_page_bottom[g_ns_page]-ns_view_bottom()+(g_ns_page?7:0));}
 static int ns_scroll(void){int maximum=ns_scroll_max();g_ns_page_scroll[g_ns_page]=clampi(g_ns_page_scroll[g_ns_page],0,maximum);return g_ns_page_scroll[g_ns_page];}
 static int ns_page_visible(int y,int h){int bot=ns_view_bottom(),scroll=ns_scroll();return y-scroll>=11&&y+h-scroll<=bot;}
 
@@ -231,11 +232,12 @@ static void ns_create_fields(void){
     {"DarkTheme","Usar tema escuro",1},
     {"WindowBlur","Usar transparência nas janelas",0}
   };
-  const int positions[]={174,48,75,299,327,102,201,228};
-  for(int i=0;i<8;++i)ns_add(NS_FIRST+i,NS_CHECK,0,general[i].key,general[i].label,199,positions[i],555,27,NS_STRETCH,general[i].fallback);
+  const int positions[]={150,41,65,258,282,89,174,198};
+  for(int i=0;i<8;++i)ns_add(NS_FIRST+i,NS_CHECK,0,general[i].key,general[i].label,199,positions[i],555,24,NS_STRETCH,general[i].fallback);
   g_ns_authorize=ns_button(g_ns_hwnd,NS_AUTHORIZE,L"",506,344,184,29);
   ns_set_text(g_ns_authorize,"Autorizar Orion Memory");
-  g_ns_language_box=ns_add(NS_FIRST+10,NS_COMBO,0,"Language","Idioma",465,429,319,30,NS_RIGHT,0)->hwnd;
+  g_ns_language_box=ns_add(NS_FIRST+10,NS_COMBO,0,"Language","Idioma",455,362,319,29,NS_RIGHT,0)->hwnd;
+   SendMessageW(g_ns_language_box,CB_SETMINVISIBLE,7,0);
   for(int i=0;i<9;++i){
     NSField *f=ns_add(NS_FIRST+20+i,NS_CHECK,1,region_keys[i],region_labels[i],0,0,580,NS_REGION_HEIGHT,NS_STRETCH,default_regions[i]);
     f->region=i;SetParent(f->hwnd,g_ns_region);
@@ -322,10 +324,10 @@ static void ns_layout(void){
  int width=MulDiv(rect.right,96,(int)GetDpiForWindow(g_ns_hwnd));
  int height=MulDiv(rect.bottom,96,(int)GetDpiForWindow(g_ns_hwnd));
  int extra=width-820,scroll=ns_scroll();
- for(int i=0;i<5;++i)ns_move(GetDlgItem(g_ns_hwnd,NS_NAV+i),13,22+i*40,151,34);
- ns_move(GetDlgItem(g_ns_hwnd,NS_APPLY),width-116,height-49,103,34);
- ns_move(GetDlgItem(g_ns_hwnd,NS_CLOSE),width-233,height-49,105,34);
- ns_move(GetDlgItem(g_ns_hwnd,NS_DEFAULTS),width-390,height-49,145,34);
+ for(int i=0;i<5;++i)ns_move(GetDlgItem(g_ns_hwnd,NS_NAV+i),12,18+i*38,144,33);
+ ns_move(GetDlgItem(g_ns_hwnd,NS_APPLY),width-116,height-47,103,32);
+ ns_move(GetDlgItem(g_ns_hwnd,NS_CLOSE),width-233,height-47,105,32);
+ ns_move(GetDlgItem(g_ns_hwnd,NS_DEFAULTS),width-390,height-47,145,32);
  for(int i=0;i<3;++i){int columns=(width-212)/3;int left=196+i*columns;
    ns_move(GetDlgItem(g_ns_hwnd,NS_PROFILE_LEVE+i),left,65-scroll,columns-9,37);
    ns_show(GetDlgItem(g_ns_hwnd,NS_PROFILE_LEVE+i),g_ns_page==1&&ns_page_visible(65,37));
@@ -346,15 +348,15 @@ static void ns_layout(void){
      ns_show(spinner,enabled);ns_show(f->hwnd,enabled);
    }else{
      if(f->region>=0)ns_move(f->hwnd,7,f->region*NS_REGION_ROW-g_ns_region_scroll,width-223,NS_REGION_HEIGHT);
-     else ns_move(f->hwnd,x,y,max(30,fw),f->kind==NS_COMBO?204:fh);
+     else ns_move(f->hwnd,x,y,max(30,fw),f->kind==NS_COMBO?(f->hwnd==g_ns_language_box?192:204):fh);
      int enabled=f->page==g_ns_page&&(f->region>=0||ns_page_visible(f->y,fh));
      ns_show(f->hwnd,enabled);
    }
  }
  ns_move(g_ns_region,195,179-scroll,width-209,254);
  ns_show(g_ns_region,g_ns_page==1&&ns_page_visible(179,254));
- ns_move(g_ns_authorize,width-225,359-scroll,198,29);
- ns_show(g_ns_authorize,g_ns_page==0&&g_ns_preview.skip_uac&&!g_ns_authorized&&ns_page_visible(359,29));
+ ns_move(g_ns_authorize,width-201,306-scroll,173,26);
+ ns_show(g_ns_authorize,g_ns_page==0&&g_ns_preview.skip_uac&&!g_ns_authorized&&ns_page_visible(306,26));
  for(int i=0;i<8;++i){HWND button=GetDlgItem(g_ns_hwnd,NS_PALETTE+i);
    ns_move(button,200+i*31,513-scroll,26,26);
    ns_show(button,g_ns_page==2&&ns_page_visible(513,26));
@@ -426,22 +428,22 @@ static void ns_draw_usage_meter(HDC dc,int x,int y,int w,int warning,int danger)
 static void ns_paint(HWND hwnd,HDC dc){
  RECT client;GetClientRect(hwnd,&client);ui_fill(dc,client,ui_background());
  int w=MulDiv(client.right,96,(int)GetDpiForWindow(hwnd));
- RECT nav={ui_scale(hwnd,8),ui_scale(hwnd,10),ui_scale(hwnd,173),client.bottom-ui_scale(hwnd,64)};
+ RECT nav={ui_scale(hwnd,8),ui_scale(hwnd,10),ui_scale(hwnd,166),client.bottom-ui_scale(hwnd,64)};
  ui_round_border(dc,nav,g_settings.dark?RGB(34,36,39):RGB(255,255,255),ui_outline(),ui_scale(hwnd,11));
  int saved=SaveDC(dc);
  IntersectClipRect(dc,ui_scale(hwnd,178),ui_scale(hwnd,10),client.right-ui_scale(hwnd,10),ui_scale(hwnd,ns_view_bottom()));
  POINT previous_origin;GetViewportOrgEx(dc,&previous_origin);
  SetViewportOrgEx(dc,previous_origin.x,previous_origin.y-ui_scale(hwnd,ns_scroll()),NULL);
  if(g_ns_page==0){
-   /* Fixed, compact general tab: all four cards fit within a 740x530 client area. */
-   ns_card(dc,12,120,"Inicialização",NULL);
-   ns_card(dc,142,116,"Janela e aparência",NULL);
-   ns_card(dc,268,125,"Segurança",NULL);
-   RECT status={ui_scale(hwnd,196),ui_scale(hwnd,359),client.right-ui_scale(hwnd,22),ui_scale(hwnd,389)};
-   ui_round_border(dc,status,ui_background(),ui_outline(),ui_scale(hwnd,8));
-   ns_label(dc,g_ns_authorized?"Autorização configurada":"Autorização pendente",209,363,w-457,23,g_ns_font,g_ns_authorized?RGB(100,204,145):ui_muted(),DT_SINGLELINE|DT_END_ELLIPSIS|DT_VCENTER);
-   ns_card(dc,399,65,"Idioma",NULL);
-   ns_label(dc,"Idioma do aplicativo:",199,433,180,26,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
+   /* Compact layout: four cards fit within a ~720 x 500 outer window at 96 DPI. */
+   ns_card(dc,10,104,"Inicialização",NULL);
+   ns_card(dc,122,104,"Janela e aparência",NULL);
+   ns_card(dc,234,100,"Segurança",NULL);
+   ns_label(dc,"Autorização:",199,307,94,22,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER);
+   ns_label(dc,g_ns_authorized?"Configurada":"Pendente",294,307,90,22,g_ns_bold,
+            g_ns_authorized?RGB(100,204,145):RGB(242,187,91),DT_SINGLELINE|DT_VCENTER);
+   ns_card(dc,341,54,"Idioma",NULL);
+   ns_label(dc,"Idioma do aplicativo:",199,365,173,23,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER);
  }else if(g_ns_page==1){
    ns_card(dc,16,96,"Perfil de limpeza",NULL);
    ns_card(dc,124,321,"Áreas incluídas na limpeza","Clique em uma operação para ver impactos e riscos.");
@@ -641,12 +643,27 @@ static int ns_commit(void){
     else{free(baseline);free(draft);}
     ns_status("Alterações aplicadas");ns_refresh_fields();return 1;
 }
+static void ns_position_language_popup(void){
+    if(!g_ns_hwnd||!g_ns_language_box||!IsWindowVisible(g_ns_language_box))return;
+    COMBOBOXINFO info;memset(&info,0,sizeof(info));info.cbSize=sizeof(info);
+    if(!GetComboBoxInfo(g_ns_language_box,&info)||!IsWindow(info.hwndList))return;
+    RECT anchor;GetWindowRect(g_ns_language_box,&anchor);
+    HMONITOR mon=MonitorFromWindow(g_ns_hwnd,MONITOR_DEFAULTTONEAREST);
+    MONITORINFO bounds;memset(&bounds,0,sizeof(bounds));bounds.cbSize=sizeof(bounds);
+    if(!GetMonitorInfoW(mon,&bounds))return;
+    int available=anchor.top-bounds.rcWork.top-ui_scale(g_ns_hwnd,12);
+    if(available<ui_scale(g_ns_hwnd,100))return;
+    int popup_h=min(ui_scale(g_ns_hwnd,210),available);
+    /* Keep the full list above the fixed footer, rather than covering Apply. */
+    SetWindowPos(info.hwndList,HWND_TOP,anchor.left,anchor.top-popup_h,
+                 anchor.right-anchor.left,popup_h,SWP_NOACTIVATE|SWP_SHOWWINDOW);
+}
 static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp){switch(message){case WM_CREATE:{g_ns_hwnd=hwnd;g_ns_baseline=_strdup(g_document?g_document:"{}");g_ns_draft=g_ns_baseline?_strdup(g_ns_baseline):NULL;g_ns_preview=g_settings;g_ns_initial=g_settings;ns_preview_refresh();memset(g_ns_spinners,0,sizeof(g_ns_spinners));memset(g_ns_spinner_hover,0,sizeof(g_ns_spinner_hover));g_ns_region_scroll=0;g_ns_force_custom=0;g_ns_color_dirty=0;g_ns_fonts_loaded=0;g_ns_theme=g_ns_window_blur=-1;g_ns_labels_language[0]=0;g_ns_authorized=native_authorization_ready();ns_fonts();ns_load_languages();g_ns_region=CreateWindowExW(WS_EX_CONTROLPARENT,NS_REGION_CLASS,L"",WS_CHILD|WS_TABSTOP|WS_CLIPCHILDREN,0,0,1,1,hwnd,NULL,g_instance,NULL);ns_create_fields();ns_create_spinners();ns_subclass_edits();for(int i=0;i<5;++i){wchar_t text[128];ns_nav_caption(i,text,128);HWND b=ns_button(hwnd,NS_NAV+i,text,14,18+i*37,162,33);ui_prepare_button(b);}ui_prepare_button(ns_button(hwnd,NS_CLOSE,L"",0,0,84,29));ui_prepare_button(ns_button(hwnd,NS_APPLY,L"",0,0,88,30));ui_prepare_button(ns_button(hwnd,NS_DEFAULTS,L"",0,0,104,30));ui_prepare_button(ns_button(hwnd,NS_OPEN_LOG,L"Abrir pasta de logs",0,0,160,27));
  for(int i=0;i<3;++i){const wchar_t *name=i==0?L"Leve":i==1?L"Equilibrado":L"Personalizado";ui_prepare_button(ns_button(hwnd,NS_PROFILE_LEVE+i,name,0,0,105,27));}
  ui_prepare_button(ns_button(hwnd,NS_TEST_NOTIFICATION,L"Testar notificação",0,0,184,27));
  ui_prepare_button(ns_button(hwnd,NS_COPY_HEX,L"Copiar",0,0,64,27));ui_prepare_button(g_ns_authorize);for(int i=0;i<8;++i)ui_prepare_button(GetDlgItem(hwnd,NS_PALETTE+i));for(int i=0;i<3;++i)g_ns_sliders[i]=CreateWindowExW(0,NS_SLIDER_CLASS,L"",WS_CHILD|WS_TABSTOP,0,0,1,1,hwnd,(HMENU)(INT_PTR)(NS_SLIDER+i),g_instance,(LPVOID)(INT_PTR)i);ns_status("Nenhuma alteração pendente");ns_refresh_fields();ns_layout();return 0;}
  case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(hwnd,&ps);ui_paint_buffered(hwnd,dc,&ps.rcPaint,ns_paint);EndPaint(hwnd,&ps);return 0;}case WM_ERASEBKGND:return 1;case WM_SIZE:ns_layout();return 0;
- case WM_GETMINMAXINFO:{MINMAXINFO *limits=(MINMAXINFO*)lp;RECT size={0,0,ui_scale(hwnd,700),ui_scale(hwnd,510)};AdjustWindowRectExForDpi(&size,(DWORD)GetWindowLongPtrW(hwnd,GWL_STYLE),FALSE,(DWORD)GetWindowLongPtrW(hwnd,GWL_EXSTYLE),GetDpiForWindow(hwnd));limits->ptMinTrackSize.x=size.right-size.left;limits->ptMinTrackSize.y=size.bottom-size.top;return 0;}
+ case WM_GETMINMAXINFO:{MINMAXINFO *limits=(MINMAXINFO*)lp;RECT size={0,0,ui_scale(hwnd,670),ui_scale(hwnd,438)};AdjustWindowRectExForDpi(&size,(DWORD)GetWindowLongPtrW(hwnd,GWL_STYLE),FALSE,(DWORD)GetWindowLongPtrW(hwnd,GWL_EXSTYLE),GetDpiForWindow(hwnd));limits->ptMinTrackSize.x=size.right-size.left;limits->ptMinTrackSize.y=size.bottom-size.top;return 0;}
  case WM_MOUSEWHEEL:{
     POINT point={GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};ScreenToClient(hwnd,&point);
     if(point.x<ui_scale(hwnd,177))return 0;
@@ -657,6 +674,7 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
  }
  case WM_DPICHANGED:{RECT *suggested=(RECT*)lp;SetWindowPos(hwnd,NULL,suggested->left,suggested->top,suggested->right-suggested->left,suggested->bottom-suggested->top,SWP_NOZORDER|SWP_NOACTIVATE);g_ns_dpi=0;ns_refresh_fields();ns_layout();return 0;}
  case NS_REFRESH:ns_refresh_fields();return 0;
+  case NS_POSITION_LANGUAGE_POPUP:ns_position_language_popup();return 0;
  case WM_TIMER:if(wp==NS_COLOR_TIMER)ns_flush_color();return 0;
  case WM_MEASUREITEM:{MEASUREITEMSTRUCT *item=(MEASUREITEMSTRUCT*)lp;if(item->CtlType==ODT_COMBOBOX){item->itemHeight=(UINT)ui_scale(hwnd,26);return TRUE;}break;}
  case WM_DRAWITEM:return ns_draw((DRAWITEMSTRUCT*)lp);
@@ -701,7 +719,8 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
      int count=0;for(int i=0;i<9;++i)count+=g_ns_preview.regions[i];if(f->checked&&count<=1){ns_status("Selecione uma região");return 0;}if(ns_save(f->key,f->checked?"false":"true")){g_ns_force_custom=1;ns_save("Profile","null");}ns_refresh_fields();return 0;}int value=!f->checked;ns_save(f->key,value?"true":"false");ns_refresh_fields();return 0;}
  if(f->kind==NS_NUMBER&&notification==EN_KILLFOCUS){ns_save_number(f);ns_refresh_fields();return 0;}
  if(f->kind==NS_COLOR_EDIT&&notification==EN_CHANGE){ns_edit_color(0);return 0;}if(f->kind==NS_COLOR_EDIT&&notification==EN_KILLFOCUS){ns_edit_color(1);return 0;}
- if(f->kind==NS_COMBO&&notification==CBN_DROPDOWN&&f->hwnd==g_ns_font_box&&!g_ns_fonts_loaded){g_ns_fonts_loaded=1;LOGFONTW font;memset(&font,0,sizeof(font));font.lfCharSet=DEFAULT_CHARSET;HDC dc=GetDC(hwnd);EnumFontFamiliesExW(dc,&font,ns_font_enum,0,0);ReleaseDC(hwnd,dc);return 0;}
+ if(f->kind==NS_COMBO&&notification==CBN_DROPDOWN&&f->hwnd==g_ns_language_box){PostMessageW(hwnd,NS_POSITION_LANGUAGE_POPUP,0,0);return 0;}
+  if(f->kind==NS_COMBO&&notification==CBN_DROPDOWN&&f->hwnd==g_ns_font_box&&!g_ns_fonts_loaded){g_ns_fonts_loaded=1;LOGFONTW font;memset(&font,0,sizeof(font));font.lfCharSet=DEFAULT_CHARSET;HDC dc=GetDC(hwnd);EnumFontFamiliesExW(dc,&font,ns_font_enum,0,0);ReleaseDC(hwnd,dc);return 0;}
  if(f->kind==NS_COMBO&&notification==CBN_SELCHANGE){int selected=(int)SendMessageW(f->hwnd,CB_GETCURSEL,0,0);if(selected<0)return 0;char raw[1024];if(f->hwnd==g_ns_language_box){if(selected<g_ns_language_count&&ns_quote(g_ns_languages[selected].code,raw,sizeof(raw)))ns_save("Language",raw);}else if(f->hwnd==g_ns_font_box){wchar_t face[LF_FACESIZE];SendMessageW(f->hwnd,CB_GETLBTEXT,selected,(LPARAM)face);if(ns_quote(face,raw,sizeof(raw)))ns_save("TrayFontFamily",raw);}else{snprintf(raw,sizeof(raw),"%d",selected);ns_save(f->key,raw);}ns_refresh_fields();return 0;}break;}
  case WM_CLOSE:DestroyWindow(hwnd);return 0;
  case WM_DESTROY:KillTimer(hwnd,NS_COLOR_TIMER);free(g_ns_draft);free(g_ns_baseline);g_ns_draft=g_ns_baseline=NULL;ui_release_text_fonts();if(g_ns_font)DeleteObject(g_ns_font);if(g_ns_bold)DeleteObject(g_ns_bold);if(g_ns_title)DeleteObject(g_ns_title);if(g_ns_edit_brush)DeleteObject(g_ns_edit_brush);if(g_ns_spinner_brush)DeleteObject(g_ns_spinner_brush);g_ns_font=g_ns_bold=g_ns_title=NULL;g_ns_edit_brush=g_ns_spinner_brush=NULL;g_ns_hwnd=NULL;g_ns_region=NULL;g_ns_count=0;return 0;
@@ -709,12 +728,12 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
 static void native_settings_show(HWND owner){if(g_ns_hwnd){ShowWindow(g_ns_hwnd,SW_SHOWNORMAL);SetForegroundWindow(g_ns_hwnd);return;}WNDCLASSEXW cls;memset(&cls,0,sizeof(cls));cls.cbSize=sizeof(cls);cls.hInstance=g_instance;cls.hCursor=LoadCursor(NULL,IDC_ARROW);cls.lpfnWndProc=ns_region_proc;cls.lpszClassName=NS_REGION_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_slider_proc;cls.lpszClassName=NS_SLIDER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=ns_spinner_proc;cls.lpszClassName=NS_SPINNER_CLASS;RegisterClassExW(&cls);cls.lpfnWndProc=native_settings_proc;cls.lpszClassName=NS_CLASS;cls.hIcon=LoadIconW(g_instance,MAKEINTRESOURCEW(1));RegisterClassExW(&cls);UINT dpi=owner?GetDpiForWindow(owner):96;if(!dpi)dpi=96;
  MONITORINFO mi;memset(&mi,0,sizeof(mi));mi.cbSize=sizeof(mi);
  HMONITOR mon=owner?MonitorFromWindow(owner,MONITOR_DEFAULTTONEAREST):MonitorFromPoint((POINT){0,0},MONITOR_DEFAULTTOPRIMARY);
- int cw=740,ch=530;
+ int cw=710,ch=458;
  if(GetMonitorInfoW(mon,&mi)){
     int usable_w=MulDiv(mi.rcWork.right-mi.rcWork.left,96,(int)dpi)-52;
     int usable_h=MulDiv(mi.rcWork.bottom-mi.rcWork.top,96,(int)dpi)-72;
-    if(usable_w<cw)cw=max(580,usable_w);
-    if(usable_h<ch)ch=max(455,usable_h);
+    if(usable_w<cw)cw=max(670,usable_w);
+    if(usable_h<ch)ch=max(438,usable_h);
  }
  RECT bounds={0,0,MulDiv(cw,(int)dpi,96),MulDiv(ch,(int)dpi,96)};
  DWORD style=WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN;AdjustWindowRectExForDpi(&bounds,style,FALSE,0,dpi);HWND window=CreateWindowExW(0,NS_CLASS,L"Configurações — Orion Memory",style,CW_USEDEFAULT,CW_USEDEFAULT,bounds.right-bounds.left,bounds.bottom-bounds.top,owner,NULL,g_instance,NULL);if(window){ui_center(window,owner);ui_apply_window(window);ShowWindow(window,SW_SHOW);RedrawWindow(window,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);}}
