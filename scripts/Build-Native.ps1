@@ -1,5 +1,5 @@
-﻿# Orion Memory - compilacao nativa Windows, sem instalacao global de ferramentas.
-# Execute este script diretamente no PowerShell ou pelo workflow do GitHub Actions.
+# Orion Memory - compilacao nativa Windows, sem instalacao global de ferramentas.
+# Execute Compilar.bat na pasta principal ou invoque este script manualmente.
 [CmdletBinding()]
 param(
     [ValidateSet('win-x64','win-arm64')][string]$Runtime = 'win-x64',
@@ -21,30 +21,11 @@ function Test-Zig([string]$Candidate) {
         $Candidate = Join-Path $Candidate 'zig.exe'
     }
     if (-not (Test-Path -LiteralPath $Candidate -PathType Leaf)) { return $null }
-    $process = $null
     try {
         $resolved = (Resolve-Path -LiteralPath $Candidate).Path
-        $process = [System.Diagnostics.Process]::new()
-        $process.StartInfo.FileName = $resolved
-        $process.StartInfo.Arguments = 'version'
-        $process.StartInfo.UseShellExecute = $false
-        $process.StartInfo.CreateNoWindow = $true
-        $process.StartInfo.RedirectStandardOutput = $true
-        $process.StartInfo.RedirectStandardError = $true
-        if (-not $process.Start()) { return $null }
-        $reported = $process.StandardOutput.ReadToEnd().Trim()
-        $errors = $process.StandardError.ReadToEnd().Trim()
-        if (-not $process.WaitForExit(10000)) {
-            $process.Kill()
-            throw 'Tempo limite ao verificar o compilador.'
-        }
-        if ($process.ExitCode -eq 0 -and $reported -eq $zigVersion) { return $resolved }
-        Write-Verbose "Compilador rejeitado: $resolved (codigo $($process.ExitCode); versao: $reported; erro: $errors)"
-    } catch {
-        Write-Verbose "Nao foi possivel validar o compilador: $($_.Exception.Message)"
-    } finally {
-        if ($process) { $process.Dispose() }
-    }
+        $version = (& $resolved version 2>$null | Select-Object -First 1)
+        if ($LASTEXITCODE -eq 0 -and "$version".Trim() -eq $zigVersion) { return $resolved }
+    } catch { }
     return $null
 }
 
@@ -188,7 +169,7 @@ foreach ($doc in $docs) {
 $binaryHash = (Get-FileHash -LiteralPath $targetExe -Algorithm SHA256).Hash.ToLowerInvariant()
 [IO.File]::WriteAllText((Join-Path $destination 'SHA256.txt'), "$binaryHash  OrionMemory.exe`r`n", [Text.UTF8Encoding]::new($false))
 $localeCount = @(Get-ChildItem -LiteralPath $localeFolder -File -Filter '*.json').Count
-if ($localeCount -ne 30) { throw "Foram encontrados $localeCount idiomas; esperados: 30. O ZIP nao sera criado." }
+if ($localeCount -ne 44) { throw "Foram encontrados $localeCount idiomas; esperados: 44. O ZIP nao sera criado." }
 
 Write-Host "Executavel pronto: $targetExe" -ForegroundColor Green
 if (-not $NoArchive) {

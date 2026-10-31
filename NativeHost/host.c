@@ -183,11 +183,13 @@ static int locale_prefix(const wchar_t *tag,const wchar_t *prefix){
 }
 static const wchar_t *mapped_locale(const wchar_t *tag){
  static const wchar_t *codes[]={
-  L"pt-BR",L"pt-PT",L"en-US",L"es-ES",L"ar-SA",L"bg-BG",L"ca-ES",
-  L"zh-CN",L"zh-TW",L"cs-CZ",L"nl-NL",L"fr-FR",L"de-DE",
+  L"pt-BR",L"pt-PT",L"pt-AO",L"pt-MZ",L"en-US",L"en-GB",L"en-AU",L"en-CA",
+  L"es-ES",L"es-MX",L"es-AR",L"es-CO",L"ar-SA",L"ar-EG",L"bg-BG",L"ca-ES",
+  L"zh-CN",L"zh-TW",L"zh-HK",L"cs-CZ",L"nl-NL",L"fr-FR",L"fr-CA",
+  L"de-DE",L"de-AT",
   L"he-IL",L"hu-HU",L"id-ID",L"it-IT",L"ja-JP",L"kk-KZ",
   L"ko-KR",L"fa-IR",L"pl-PL",L"ro-RO",L"ru-RU",
-  L"sr-Cyrl-RS",L"sk-SK",L"sv-SE",L"tr-TR",L"uk-UA",L"vi-VN"
+  L"sr-Cyrl-RS",L"sk-SK",L"sv-SE",L"tr-TR",L"uk-UA",L"vi-VN",L"hi-IN",L"el-GR"
  };
  if(!tag||!tag[0])return NULL;
  for(unsigned i=0;i<sizeof(codes)/sizeof(codes[0]);++i)
@@ -198,7 +200,9 @@ static const wchar_t *mapped_locale(const wchar_t *tag){
  }
  if(locale_prefix(tag,L"sr-Cyrl"))return L"sr-Cyrl-RS";
  if(locale_prefix(tag,L"sr"))return NULL; /* Do not present Cyrillic as Latin Serbian. */
- if(locale_prefix(tag,L"pt-PT")||locale_prefix(tag,L"pt-AO")||locale_prefix(tag,L"pt-MZ"))return L"pt-PT";
+ if(locale_prefix(tag,L"pt-AO"))return L"pt-AO";
+ if(locale_prefix(tag,L"pt-MZ"))return L"pt-MZ";
+ if(locale_prefix(tag,L"pt-PT"))return L"pt-PT";
  if(locale_prefix(tag,L"pt"))return L"pt-BR";
  static const struct {const wchar_t *language,*code;} fallback[]={
   {L"en",L"en-US"},{L"es",L"es-ES"},{L"ar",L"ar-SA"},{L"bg",L"bg-BG"},
@@ -208,7 +212,7 @@ static const wchar_t *mapped_locale(const wchar_t *tag){
   {L"ja",L"ja-JP"},{L"kk",L"kk-KZ"},{L"ko",L"ko-KR"},
   {L"fa",L"fa-IR"},{L"pl",L"pl-PL"},{L"ro",L"ro-RO"},
   {L"ru",L"ru-RU"},{L"sk",L"sk-SK"},{L"sv",L"sv-SE"},
-  {L"tr",L"tr-TR"},{L"uk",L"uk-UA"},{L"vi",L"vi-VN"}
+  {L"tr",L"tr-TR"},{L"uk",L"uk-UA"},{L"vi",L"vi-VN"},{L"hi",L"hi-IN"},{L"el",L"el-GR"}
  };
  for(unsigned i=0;i<sizeof(fallback)/sizeof(fallback[0]);++i)
   if(locale_prefix(tag,fallback[i].language))return fallback[i].code;
@@ -382,7 +386,15 @@ static int storage_self_test(void) {
 }
 static int icon_ink_height(HICON icon,int size){ICONINFO info;memset(&info,0,sizeof(info));if(!icon||!GetIconInfo(icon,&info))return 0;BITMAPINFO format;memset(&format,0,sizeof(format));format.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);format.bmiHeader.biWidth=size;format.bmiHeader.biHeight=-size;format.bmiHeader.biPlanes=1;format.bmiHeader.biBitCount=32;format.bmiHeader.biCompression=BI_RGB;uint32_t pixels[32*32];HDC dc=GetDC(NULL);int top=size,bottom=-1;if(size<=32&&GetDIBits(dc,info.hbmColor,0,(UINT)size,pixels,&format,DIB_RGB_COLORS))for(int y=0;y<size;++y)for(int x=0;x<size;++x)if((pixels[y*size+x]>>24)>10){if(y<top)top=y;if(y>bottom)bottom=y;}ReleaseDC(NULL,dc);DeleteObject(info.hbmColor);DeleteObject(info.hbmMask);return bottom<0?0:bottom-top+1;}
 static int native_ui_self_test(void){int failures=0;Popup menu;memset(&menu,0,sizeof(menu));popup_build(&menu);int expected[]={CMD_SHOW,CMD_CLEAN,0,0,0,CMD_SETTINGS,CMD_HISTORY,CMD_ABOUT,0,CMD_EXIT};int menu_ok=menu.count==10;for(int i=0;i<10&&menu_ok;++i)menu_ok&=menu.rows[i].command==(UINT)expected[i];menu_ok&=menu.rows[2].separator&&menu.rows[4].separator&&menu.rows[8].separator&&menu.rows[3].submenu;memset(&menu,0,sizeof(menu));menu.kind=4;popup_build(&menu);menu_ok&=menu.count==9;for(int i=0;i<9&&menu_ok;++i)menu_ok&=menu.rows[i].command==(UINT)(CMD_REGION+i);failures+=check(menu_ok,"rounded native popups contain exact command order, themed separators and nine direct regions");wchar_t percentage[64];double precise=100.0*(1000000.0-682870.0)/1000000.0;format_percent(precise,percentage,64);failures+=check(!wcscmp(percentage,L"31,713%"),"main percentages retain three real decimal places and the Brazilian comma");Settings original=g_settings,parsed;Json settings_json;const char *settings_text="{\"NativeAppearanceRevision\":20,\"TrayFontSize\":1,\"RefreshSeconds\":5}";int ok=json_init(&settings_json,settings_text,strlen(settings_text));if(ok)parse_settings(&parsed,&settings_json);json_free(&settings_json);Settings defaults;default_settings(&defaults);failures+=check(ok&&defaults.font_size==8&&parsed.font_size==1,"native tray font defaults to eight points and accepts one point");failures+=check(ok&&defaults.refresh_seconds==1&&parsed.refresh_seconds==5,"native refresh preference controls memory sampling without delaying worker completion or settings polling");g_settings=defaults;g_settings.transparent=1;g_settings.border=0;g_settings.font_size=1;HICON smallest=render_icon(88,16);int small_height=icon_ink_height(smallest,16);if(smallest)DestroyIcon(smallest);g_settings.font_size=4;HICON normal=render_icon(88,16);int normal_height=icon_ink_height(normal,16);if(normal)DestroyIcon(normal);g_settings.font_size=9;HICON large=render_icon(88,16);int large_height=icon_ink_height(large,16);if(large)DestroyIcon(large);failures+=check(small_height>0&&small_height<=3&&normal_height>small_height&&normal_height<=6&&large_height>normal_height,"one/four/nine point tray fonts honor their actual ink size without scaling to fill the icon");g_settings=original;return failures;}
-static int self_test(void){g_test_mode=1;int failures=0;default_settings(&g_settings);Json j;const char *sample="{\"Unknown\":{\"deep\":[1,true,\"preserve\"]},\"LowPriorityStandby\":true,\"GlobalWorkingSets\":false,\"Language\":\"pt-BR\",\"Unicode\":\"\\u00e7\\ud83d\\ude00\"}";int ok=json_init(&j,sample,strlen(sample));failures+=check(ok,"native JSON parser accepts nested unknown keys and escaped Unicode");if(ok){wchar_t unicode[16];failures+=check(json_wide(&j,"Unicode",unicode,16)&&unicode[0]==0x00E7&&unicode[1]==0xD83D&&unicode[2]==0xDE00,"native JSON decodes escaped surrogate pairs without corruption");}json_free(&j);char *edited=json_replace(sample,"LowPriorityStandby","false");failures+=check(edited&&strstr(edited,"\"Unknown\":{\"deep\":[1,true,\"preserve\"]}")&&strstr(edited,"\"LowPriorityStandby\":false"),"region edits preserve unknown JSON properties and formatting");free(edited);const char *invalid[]={"{\"x\":true,}","{\"x\":01}","{\"x\":tru}","{\"x\":\"bad\\z\"}","[]","{\"x\":1} garbage"};ok=1;for(unsigned i=0;i<sizeof(invalid)/sizeof(*invalid);++i){if(json_init(&j,invalid[i],strlen(invalid[i])))ok=0;json_free(&j);}failures+=check(ok,"malformed or incomplete settings are rejected");
+static int self_test(void){g_test_mode=1;int failures=0;default_settings(&g_settings);failures+=check(
+ !_wcsicmp(mapped_locale(L"en-GB"),L"en-GB")&&
+ !_wcsicmp(mapped_locale(L"pt-AO"),L"pt-AO")&&
+ !_wcsicmp(mapped_locale(L"es-MX"),L"es-MX")&&
+ !_wcsicmp(mapped_locale(L"zh-HK"),L"zh-HK")&&
+ !_wcsicmp(mapped_locale(L"hi-IN"),L"hi-IN")&&
+ !_wcsicmp(mapped_locale(L"el-GR"),L"el-GR"),
+ "extended Windows locale mapping resolves regional and new language tags");
+ Json j;const char *sample="{\"Unknown\":{\"deep\":[1,true,\"preserve\"]},\"LowPriorityStandby\":true,\"GlobalWorkingSets\":false,\"Language\":\"pt-BR\",\"Unicode\":\"\\u00e7\\ud83d\\ude00\"}";int ok=json_init(&j,sample,strlen(sample));failures+=check(ok,"native JSON parser accepts nested unknown keys and escaped Unicode");if(ok){wchar_t unicode[16];failures+=check(json_wide(&j,"Unicode",unicode,16)&&unicode[0]==0x00E7&&unicode[1]==0xD83D&&unicode[2]==0xDE00,"native JSON decodes escaped surrogate pairs without corruption");}json_free(&j);char *edited=json_replace(sample,"LowPriorityStandby","false");failures+=check(edited&&strstr(edited,"\"Unknown\":{\"deep\":[1,true,\"preserve\"]}")&&strstr(edited,"\"LowPriorityStandby\":false"),"region edits preserve unknown JSON properties and formatting");free(edited);const char *invalid[]={"{\"x\":true,}","{\"x\":01}","{\"x\":tru}","{\"x\":\"bad\\z\"}","[]","{\"x\":1} garbage"};ok=1;for(unsigned i=0;i<sizeof(invalid)/sizeof(*invalid);++i){if(json_init(&j,invalid[i],strlen(invalid[i])))ok=0;json_free(&j);}failures+=check(ok,"malformed or incomplete settings are rejected");
     char *large=(char*)malloc(160000);int used=0;if(large){used+=snprintf(large+used,160000-used,"{\"Unknown\":[");for(int i=0;i<10000;++i)used+=snprintf(large+used,160000-used,"%s%d",i?",":"",i);used+=snprintf(large+used,160000-used,"],\"Tail\":42}");}Json grow;int growth_ok=large&&json_init(&grow,large,(size_t)used);failures+=check(growth_ok&&grow.count>10000&&json_number(&grow,"Tail",0)==42&&grow.capacity<=16384,"JSON token storage grows on demand and preserves parent offsets across reallocations");if(large)json_free(&grow);free(large);
     failures+=storage_self_test();HICON warmup=render_icon(88,16);if(warmup)DestroyIcon(warmup);DWORD before=GetGuiResources(GetCurrentProcess(),GR_GDIOBJECTS);int values[]={0,1,9,14,88,100},sizes[]={16,20,24,32,48};ok=1;for(unsigned a=0;a<sizeof(sizes)/sizeof(*sizes);++a)for(unsigned b=0;b<sizeof(values)/sizeof(*values);++b){HICON icon=render_icon(values[b],sizes[a]);if(!icon)ok=0;else{ICONINFO info;if(GetIconInfo(icon,&info)){BITMAP bmp;GetObjectW(info.hbmColor,sizeof(bmp),&bmp);if(bmp.bmWidth!=sizes[a]||bmp.bmHeight!=sizes[a])ok=0;DeleteObject(info.hbmColor);DeleteObject(info.hbmMask);}else ok=0;DestroyIcon(icon);}}failures+=check(ok,"native tray values 0/1/9/14/88/100 render at five DPI sizes");DWORD after=GetGuiResources(GetCurrentProcess(),GR_GDIOBJECTS);failures+=check(after<=before+2,"native icon rendering releases all GDI objects");update_dpi();HMENU menu=build_menu();failures+=check(menu&&GetMenuItemCount(menu)==10&&GetMenuItemCount(GetSubMenu(menu,3))==9,"native popup contains the requested order and direct region submenu");release_menu(menu);failures+=native_ui_self_test();failures+=native_actions_self_test();failures+=native_authorization_self_test();failures+=native_automation_self_test();return failures?1:0;}
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE previous,LPWSTR command_line,int show) {

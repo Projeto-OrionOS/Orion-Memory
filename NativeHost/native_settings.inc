@@ -69,7 +69,7 @@ static NSField g_ns_fields[64];static int g_ns_count,g_ns_page,g_ns_updating,g_n
 static HFONT g_ns_font,g_ns_bold,g_ns_title;static HBRUSH g_ns_edit_brush,g_ns_spinner_brush;static UINT g_ns_dpi;
 static HWND g_ns_spinners[64];static int g_ns_spinner_hover[64];
 static COLORREF g_ns_colors[4];static HWND g_ns_sliders[3],g_ns_font_box,g_ns_language_box,g_ns_hex,g_ns_font_size,g_ns_hotkey,g_ns_authorize;
-static NSLanguage g_ns_languages[48];static int g_ns_language_count;static wchar_t g_ns_status[320],g_ns_labels_language[32];static int g_ns_theme=-1,g_ns_window_blur=-1;
+static NSLanguage g_ns_languages[64];static int g_ns_language_count;static wchar_t g_ns_status[320],g_ns_labels_language[32];static int g_ns_theme=-1,g_ns_window_blur=-1;
 static const COLORREF ns_palette[]={RGB(111,181,255),RGB(15,28,50),RGB(249,194,86),RGB(255,127,123),RGB(255,255,255),RGB(32,32,32),RGB(76,217,100),RGB(255,176,32)};
 static const char *ns_pages[]={"Geral","Limpeza","Aparência","Bandeja","Avançado"};
 static const char *ns_pages_previous[]={"Principal","Liberação de memória","Aparência","Ícone de notificação","Avançado"};
@@ -93,7 +93,7 @@ static int ns_is_dirty(void){
 }
 static void ns_nav_caption(int page,wchar_t *out,int capacity){
     /* Localize with existing 30-language keys. Brazilian Portuguese uses shorter captions. */
-    translate(!wcscmp(g_settings.language,L"pt-BR")?ns_pages[page]:ns_pages_previous[page],out,capacity);
+    translate(ns_pages[page],out,capacity);
 }
 static const char *ns_region_short[]={
  "Pode recarregar aplicativos", "Aumenta leituras do disco", "Pode provocar gravações",
@@ -132,7 +132,12 @@ static void ns_status(const char *text){wchar_t next[320];translate(text,next,32
 static int ns_object_find(Json *j,int object,const char *key){char name[128];for(int n=object+1;n<j->tokens[object].next;){int value=n+1;if(json_text(j,n,name,sizeof(name))&&!strcmp(name,key))return value;n=j->tokens[value].next;}return -1;}
 static void ns_token_wide(Json *j,int token,wchar_t *to,int cap){char value[768];to[0]=0;if(json_text(j,token,value,sizeof(value)))MultiByteToWideChar(CP_UTF8,0,value,-1,to,cap);}
 static int __cdecl ns_language_order(const void *a,const void *b){const NSLanguage *one=(const NSLanguage*)a,*two=(const NSLanguage*)b;int result=CompareStringEx(L"pt-BR",NORM_IGNORECASE,one->country,-1,two->country,-1,NULL,NULL,0);if(result==CSTR_EQUAL)return wcscmp(one->code,two->code);return result-CSTR_EQUAL;}
-static void ns_load_languages(void){g_ns_language_count=0;wchar_t path[MAX_PATH];path_join(path,MAX_PATH,g_folder,L"Languages.json");char *array=read_utf8(path);if(array){size_t len=strlen(array);char *wrapped=(char*)malloc(len+16);if(wrapped){snprintf(wrapped,len+16,"{\"items\":%s}",array);Json j;if(json_init(&j,wrapped,strlen(wrapped))){int items=json_find(&j,"items");if(items>=0&&j.tokens[items].type==J_ARRAY)for(int n=items+1;n<j.tokens[items].next&&g_ns_language_count<48;n=j.tokens[n].next){if(j.tokens[n].type!=J_OBJECT)continue;NSLanguage *language=&g_ns_languages[g_ns_language_count];ns_token_wide(&j,ns_object_find(&j,n,"Code"),language->code,32);ns_token_wide(&j,ns_object_find(&j,n,"Country"),language->country,96);ns_token_wide(&j,ns_object_find(&j,n,"Name"),language->name,96);if(language->code[0]&&language->country[0])++g_ns_language_count;}}json_free(&j);free(wrapped);}free(array);}if(!g_ns_language_count){copyw(g_ns_languages[0].code,32,L"pt-BR");copyw(g_ns_languages[0].country,96,L"Brasil");copyw(g_ns_languages[0].name,96,L"Português");g_ns_language_count=1;}qsort(g_ns_languages,(size_t)g_ns_language_count,sizeof(NSLanguage),ns_language_order);}
+static void ns_load_languages(void){g_ns_language_count=0;wchar_t path[MAX_PATH];path_join(path,MAX_PATH,g_folder,L"Languages.json");char *array=read_utf8(path);if(array){size_t len=strlen(array);char *wrapped=(char*)malloc(len+16);if(wrapped){snprintf(wrapped,len+16,"{\"items\":%s}",array);Json j;if(json_init(&j,wrapped,strlen(wrapped))){int items=json_find(&j,"items");if(items>=0&&j.tokens[items].type==J_ARRAY)for(int n=items+1;n<j.tokens[items].next&&g_ns_language_count<64;n=j.tokens[n].next){if(j.tokens[n].type!=J_OBJECT)continue;NSLanguage *language=&g_ns_languages[g_ns_language_count];ns_token_wide(&j,ns_object_find(&j,n,"Code"),language->code,32);ns_token_wide(&j,ns_object_find(&j,n,"Country"),language->country,96);ns_token_wide(&j,ns_object_find(&j,n,"Name"),language->name,96);if(language->code[0]&&language->country[0]){
+    wchar_t filename[96],location[MAX_PATH];
+    swprintf(filename,96,L"Languages\\%ls.json",language->code);
+    if(path_join(location,MAX_PATH,g_folder,filename)&&GetFileAttributesW(location)!=INVALID_FILE_ATTRIBUTES)
+        ++g_ns_language_count;
+}}}json_free(&j);free(wrapped);}free(array);}if(!g_ns_language_count){copyw(g_ns_languages[0].code,32,L"pt-BR");copyw(g_ns_languages[0].country,96,L"Brasil");copyw(g_ns_languages[0].name,96,L"Português");g_ns_language_count=1;}qsort(g_ns_languages,(size_t)g_ns_language_count,sizeof(NSLanguage),ns_language_order);}
 static void ns_fonts(void){if(g_ns_font)DeleteObject(g_ns_font);if(g_ns_bold)DeleteObject(g_ns_bold);if(g_ns_title)DeleteObject(g_ns_title);if(g_ns_edit_brush)DeleteObject(g_ns_edit_brush);g_ns_font=ui_font(g_ns_hwnd,14,FW_NORMAL);g_ns_bold=ui_font(g_ns_hwnd,16,FW_SEMIBOLD);g_ns_title=ui_font(g_ns_hwnd,18,FW_SEMIBOLD);g_ns_edit_brush=CreateSolidBrush(ui_surface());if(g_ns_spinner_brush)DeleteObject(g_ns_spinner_brush);g_ns_spinner_brush=CreateSolidBrush(ui_background());g_ns_dpi=GetDpiForWindow(g_ns_hwnd);}
 static HWND ns_button(HWND parent,int id,const wchar_t *label,int x,int y,int w,int h){HWND control=CreateWindowExW(0,L"BUTTON",label,WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW,ui_scale(g_ns_hwnd,x),ui_scale(g_ns_hwnd,y),ui_scale(g_ns_hwnd,w),ui_scale(g_ns_hwnd,h),parent,(HMENU)(INT_PTR)id,g_instance,NULL);SendMessageW(control,WM_SETFONT,(WPARAM)g_ns_font,FALSE);ui_prepare_button(control);return control;}
 
@@ -311,7 +316,15 @@ static void ns_refresh_fields(void){
  for(int i=0;i<4;++i){if(language_changed)ns_set_text(extra_buttons[i],extra_labels[i]);if(theme_changed)SendMessageW(extra_buttons[i],WM_SETFONT,(WPARAM)g_ns_font,FALSE);}
  ns_show(g_ns_authorize,g_ns_page==0&&g_ns_preview.skip_uac&&!g_ns_authorized);
  EnableWindow(GetDlgItem(g_ns_hwnd,NS_APPLY),ns_is_dirty());
- if(language_changed)copyw(g_ns_labels_language,32,g_settings.language);
+ if(language_changed){
+  ns_set_text(GetDlgItem(g_ns_hwnd,NS_OPEN_LOG),"Abrir pasta de logs");
+  ns_set_text(GetDlgItem(g_ns_hwnd,NS_TEST_NOTIFICATION),"Testar notificação");
+  ns_set_text(GetDlgItem(g_ns_hwnd,NS_COPY_HEX),"Copiar");
+  ns_set_text(GetDlgItem(g_ns_hwnd,NS_PROFILE_LEVE),"Leve");
+  ns_set_text(GetDlgItem(g_ns_hwnd,NS_PROFILE_EQUILIBRADO),"Equilibrado");
+  ns_set_text(GetDlgItem(g_ns_hwnd,NS_PROFILE_PERSONALIZADO),"Personalizado");
+  copyw(g_ns_labels_language,32,g_settings.language);
+}
  g_ns_updating=0;
  if(theme_changed)for(int i=0;i<g_ns_count;++i)if(g_ns_spinners[i])InvalidateRect(g_ns_spinners[i],NULL,FALSE);
  if(theme_changed||transparency_changed||language_changed)RedrawWindow(g_ns_hwnd,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN);
@@ -498,7 +511,8 @@ static void ns_paint(HWND hwnd,HDC dc){
    ns_label(dc,g_ns_authorized?"Autorizado":"Autorização pendente",500,428,w-530,25,g_ns_font,g_ns_authorized?RGB(101,202,145):ns_risk_color(1),DT_SINGLELINE);
    PROCESS_MEMORY_COUNTERS_EX proc;memset(&proc,0,sizeof(proc));
    if(GetProcessMemoryInfo(GetCurrentProcess(),(PROCESS_MEMORY_COUNTERS*)&proc,sizeof(proc))){
-     wchar_t measure[128];swprintf(measure,128,L"Memória residente: %.1f MB",(double)proc.WorkingSetSize/(1024.0*1024.0));
+     wchar_t measure[128];wchar_t fmt[128];translate("Memória residente: %.1f MB",fmt,128);
+     swprintf(measure,128,fmt,(double)proc.WorkingSetSize/(1024.0*1024.0));
      RECT area={ui_scale(hwnd,198),ui_scale(hwnd,467),client.right-ui_scale(hwnd,29),ui_scale(hwnd,500)};
      ui_text_draw(dc,area,measure,g_ns_font,ui_muted(),DT_SINGLELINE|DT_VCENTER);
    }
@@ -509,7 +523,8 @@ static void ns_paint(HWND hwnd,HDC dc){
  HPEN line=CreatePen(PS_SOLID,1,ui_outline());HGDIOBJ old=SelectObject(dc,line);
  MoveToEx(dc,0,footer.top,NULL);LineTo(dc,footer.right,footer.top);SelectObject(dc,old);DeleteObject(line);
  RECT message={ui_scale(hwnd,16),footer.top,client.right-ui_scale(hwnd,394),footer.bottom};
- const wchar_t *status=g_ns_status[0]?g_ns_status:L"Nenhuma alteração pendente";
+ wchar_t neutral[128];translate("Nenhuma alteração pendente",neutral,128);
+  const wchar_t *status=g_ns_status[0]?g_ns_status:neutral;
  ui_text_draw(dc,message,status,g_ns_font,ns_is_dirty()?ui_accent():ui_muted(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
  int max_scroll=ns_scroll_max();
  if(max_scroll>0){int top=ui_scale(hwnd,15),body=ui_scale(hwnd,ns_view_bottom()-25);
@@ -544,7 +559,7 @@ static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw
     COLORREF badge_bg=risk==0?RGB(29,64,49):risk==1?RGB(65,52,30):RGB(70,35,40);
     if(!g_settings.dark)badge_bg=risk==0?RGB(217,246,227):risk==1?RGB(250,237,200):RGB(253,222,226);
     ui_round(dc,badge,badge_bg,ui_scale(g_ns_hwnd,8));
-    const wchar_t *tag=risk==0?L"Recomendado":risk==1?L"Cautela":L"Pode travar";
+    wchar_t tag[64];translate(risk==0?"Recomendado":risk==1?"Cautela":"Pode travar",tag,64);
     ui_text_draw(dc,badge,tag,g_ns_font,ns_risk_color(risk),DT_CENTER|DT_SINGLELINE|DT_VCENTER);
  }else ui_text_draw(dc,r,text,g_ns_font,ui_text(),DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);
  return TRUE;}
@@ -555,7 +570,7 @@ static LRESULT ns_draw(DRAWITEMSTRUCT *draw){int id=(int)draw->CtlID;HDC dc=draw
     RECT name=r;name.bottom=r.top+(r.bottom-r.top)*2/3;
     ui_text_draw(dc,name,text,g_ns_bold,ui_text(),DT_SINGLELINE|DT_VCENTER|DT_CENTER);
     RECT subtitle=r;subtitle.top=name.bottom-ui_scale(g_ns_hwnd,4);
-    const wchar_t *hint=id==NS_PROFILE_LEVE?L"Menor impacto":id==NS_PROFILE_EQUILIBRADO?L"Recomendado · manual":L"Escolha cada operação";
+    wchar_t hint[96];translate(id==NS_PROFILE_LEVE?"Menor impacto":id==NS_PROFILE_EQUILIBRADO?"Recomendado · manual":"Escolha cada operação",hint,96);
     ui_text_draw(dc,subtitle,hint,g_ns_font,ui_muted(),DT_SINGLELINE|DT_CENTER|DT_VCENTER);
     return TRUE;
  }
@@ -695,8 +710,8 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
  }
  if(id==NS_TEST_NOTIFICATION){
      NOTIFYICONDATAW data=tray_data();data.uFlags=NIF_INFO;data.dwInfoFlags=NIIF_INFO|NIIF_NOSOUND;
-     copyw(data.szInfoTitle,64,L"Orion Memory · teste");
-     copyw(data.szInfo,256,L"Notificação de teste. Nenhuma limpeza foi realizada.");
+     translate("Orion Memory · teste",data.szInfoTitle,64);
+     translate("Notificação de teste. Nenhuma limpeza foi realizada.",data.szInfo,256);
      if(g_ns_preview.sound)data.dwInfoFlags=NIIF_INFO;
      Shell_NotifyIconW(NIM_MODIFY,&data);return 0;
  }
@@ -713,8 +728,10 @@ static LRESULT CALLBACK native_settings_proc(HWND hwnd,UINT message,WPARAM wp,LP
  NSField *f=ns_field(id);if(!f)return 0;
  if(f->kind==NS_CHECK&&notification==BN_CLICKED){if(f->region>=0){
      if(!f->checked&&ns_region_risk[f->region]==2){
-         wchar_t warning[512];swprintf(warning,512,L"Essa operação pode provocar lentidão intensa, picos de disco ou travamento aparente.\n\nSalve o trabalho antes de executá-la.\n\nDeseja incluir essa operação na limpeza manual?");
-         if(MessageBoxW(hwnd,warning,L"Orion Memory — operação avançada",MB_YESNO|MB_ICONWARNING|MB_DEFBUTTON2)!=IDYES)return 0;
+         wchar_t warning[512],caption[128];
+          translate("Essa operação pode provocar lentidão intensa, picos de disco ou travamento aparente.\n\nSalve o trabalho antes de executá-la.\n\nDeseja incluir essa operação na limpeza manual?",warning,512);
+          translate("Orion Memory — operação avançada",caption,128);
+         if(MessageBoxW(hwnd,warning,caption,MB_YESNO|MB_ICONWARNING|MB_DEFBUTTON2)!=IDYES)return 0;
      }
      int count=0;for(int i=0;i<9;++i)count+=g_ns_preview.regions[i];if(f->checked&&count<=1){ns_status("Selecione uma região");return 0;}if(ns_save(f->key,f->checked?"false":"true")){g_ns_force_custom=1;ns_save("Profile","null");}ns_refresh_fields();return 0;}int value=!f->checked;ns_save(f->key,value?"true":"false");ns_refresh_fields();return 0;}
  if(f->kind==NS_NUMBER&&notification==EN_KILLFOCUS){ns_save_number(f);ns_refresh_fields();return 0;}

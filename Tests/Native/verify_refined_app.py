@@ -20,7 +20,7 @@ checks={
 'cor da interface #202020': 'RGB(32,32,32)' in draw,
 'previsoes de icone claro/escuro': 'HICON icon_dark=render_icon' in settings and 'HICON icon_light=render_icon' in settings,
 'abrir pasta dos logs': 'ShellExecuteW(hwnd,L"open",g_data_dir' in settings,
-'30 idiomas incluidos': len(list((R/'Languages').glob('*.json')))==30,
+'44 idiomas incluidos': len(list((R/'Languages').glob('*.json')))==44,
 'lancamento local sem GitHub': (R/'Executar-OrionMemory.bat').is_file(),
 'script oficial Zig sem instalador': (R/'scripts/Build-Native.ps1').is_file(),
 }

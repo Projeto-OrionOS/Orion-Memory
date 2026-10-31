@@ -25,8 +25,8 @@ check('WM_CTLCOLOREDIT:case WM_CTLCOLORSTATIC:' in code and 'g_ns_spinner_brush;
 check('WS_CHILD|WS_CLIPCHILDREN' in code and 'SetParent(field->hwnd,container)' in code, 'EDIT nativo preservado para digitação e acessibilidade')
 check('case WM_COMMAND:return SendMessageW(g_ns_hwnd,WM_COMMAND,wp,lp);' in code, 'Notificações do EDIT encaminhadas para a janela de configurações')
 check('SendMessageW(g_ns_hwnd,WM_COMMAND,MAKEWPARAM(command,BN_CLICKED),0);' in code, 'Clique nas setas mantém validação e gravação já existentes')
-check('ns_move(spinner,x-8,y-2,w+40,30)' in code, 'Posicionamento compacto com separação entre campos')
-check('ns_show(spinner,f->page==g_ns_page)' in code, 'Controles aparecem apenas na aba correspondente')
+check('ns_move(spinner,x-6,y-1,fw+37,30)' in code, 'Posicionamento compacto com separação entre campos')
+check('ns_show(spinner,enabled)' in code and 'f->page==g_ns_page&&ns_page_visible' in code, 'Controles aparecem apenas na aba correspondente')
 check('if(f->kind==NS_NUMBER&&g_ns_spinners[i])' in code, 'Fallback do campo original se wrapper não for criado')
 check('ns_create_fields();ns_create_spinners();ns_subclass_edits();' in code, 'Ordem correta de inicialização e subclassing')
 check('cls.lpfnWndProc=ns_spinner_proc;cls.lpszClassName=NS_SPINNER_CLASS;RegisterClassExW(&cls);' in code, 'Classe registrada antes de criar a janela')
@@ -38,7 +38,7 @@ check('case WM_KEYDOWN' in code and 'if(wp==VK_RETURN)' in code, 'Enter mantém 
 check('if(value>=g_settings.warning)' not in code, 'Sem alterações indevidas nas regras de valores')
 check('static void a_real_operation(' in original, 'Motor original de limpeza preservado')
 langs=list((root/'Languages').glob('*.json'))
-check(len(langs)==30 and all(isinstance(json.loads(p.read_text(encoding='utf-8')),dict) for p in langs), '30 arquivos de idioma íntegros')
+check(len(langs)==44 and all(isinstance(json.loads(p.read_text(encoding='utf-8')),dict) for p in langs), '44 arquivos de idioma íntegros')
 check((root/'Assets/OrionMemory.ico').stat().st_size>10_000, 'Ícone RAM oficial presente')
 
 for ok, description in checks:

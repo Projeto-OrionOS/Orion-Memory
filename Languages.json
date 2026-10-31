@@ -148,5 +148,75 @@
     "Code": "vi-VN",
     "Name": "Tiếng Việt",
     "Country": "Vietnã"
+  },
+  {
+    "Code": "en-GB",
+    "Name": "English (United Kingdom)",
+    "Country": "Reino Unido"
+  },
+  {
+    "Code": "en-AU",
+    "Name": "English (Australia)",
+    "Country": "Austrália"
+  },
+  {
+    "Code": "en-CA",
+    "Name": "English (Canada)",
+    "Country": "Canadá"
+  },
+  {
+    "Code": "es-MX",
+    "Name": "Español (México)",
+    "Country": "México"
+  },
+  {
+    "Code": "es-AR",
+    "Name": "Español (Argentina)",
+    "Country": "Argentina"
+  },
+  {
+    "Code": "es-CO",
+    "Name": "Español (Colombia)",
+    "Country": "Colômbia"
+  },
+  {
+    "Code": "fr-CA",
+    "Name": "Français (Canada)",
+    "Country": "Canadá"
+  },
+  {
+    "Code": "de-AT",
+    "Name": "Deutsch (Österreich)",
+    "Country": "Áustria"
+  },
+  {
+    "Code": "pt-AO",
+    "Name": "Português (Angola)",
+    "Country": "Angola"
+  },
+  {
+    "Code": "pt-MZ",
+    "Name": "Português (Moçambique)",
+    "Country": "Moçambique"
+  },
+  {
+    "Code": "zh-HK",
+    "Name": "繁體中文 (香港)",
+    "Country": "Hong Kong"
+  },
+  {
+    "Code": "ar-EG",
+    "Name": "العربية (مصر)",
+    "Country": "Egito"
+  },
+  {
+    "Code": "hi-IN",
+    "Name": "हिन्दी",
+    "Country": "Índia"
+  },
+  {
+    "Code": "el-GR",
+    "Name": "Ελληνικά",
+    "Country": "Grécia"
   }
 ]

@@ -33,7 +33,9 @@ static void popup_close_all(void) {
 
 static int popup_portuguese(void) {
     return !_wcsicmp(g_settings.language, L"pt-BR") ||
-           !_wcsicmp(g_settings.language, L"pt-PT");
+           !_wcsicmp(g_settings.language, L"pt-PT") ||
+           !_wcsicmp(g_settings.language, L"pt-AO") ||
+           !_wcsicmp(g_settings.language, L"pt-MZ");
 }
 
 static const wchar_t *const tray_region_short_labels[9] = {
