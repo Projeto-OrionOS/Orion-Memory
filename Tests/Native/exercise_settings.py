@@ -52,7 +52,7 @@ def main():
         check(read()['TrayTextColor']=='#4CD964','palette selection applies immediately')
         check(read()['Unknown']==prefs['Unknown'],'settings edits preserve unknown preferences')
         language=field(5110);count=u.SendMessageW(language,0x146,0,0)
-        check(count==30,'all 30 languages are available')
+        check(count==44,'all 44 languages are available')
         english=-1;portuguese=-1
         for i in range(count):
             text=c.create_unicode_buffer(256);u.SendMessageW(language,0x148,i,c.addressof(text))

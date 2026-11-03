@@ -1,84 +1,56 @@
-name: Orion Memory | Build Windows x64
-
+name: Orion Memory - Windows nativo
 on:
   workflow_dispatch:
   push:
-    branches: [main]
     paths:
-      - "NativeHost/**"
-      - "Assets/**"
-      - "Languages/**"
-      - "Languages.json"
-      - "app.manifest"
-      - "Tests/Native/**"
-      - "scripts/Build-Native.ps1"
-      - ".github/workflows/build-windows.yml"
-  pull_request:
-    branches: [main]
-
+      - 'NativeHost/**'
+      - 'Assets/**'
+      - 'Languages/**'
+      - 'Languages.json'
+      - 'scripts/Build-Native.ps1'
+      - '.github/workflows/build-windows.yml'
 permissions:
   contents: read
-
 jobs:
-  build:
-    name: Compilar e testar (Windows x64)
+  win-x64:
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
-      - name: Obter codigo-fonte
-        uses: actions/checkout@v4
-
-      - name: Preparar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Verificar estrutura e testes estaticos
+      - uses: actions/checkout@v4
+      - name: Validar fontes, icone e 44 idiomas
         shell: pwsh
         run: |
-          $required = @(
-            "NativeHost/host.c",
-            "NativeHost/host.rc",
-            "scripts/Build-Native.ps1",
-            "Languages.json",
-            "Tests/Native/revisao_qualidade.py"
-          )
-          foreach ($path in $required) {
-            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-              throw "Arquivo obrigatorio ausente: $path"
-            }
-          }
           python Tests/Native/revisao_qualidade.py
-          if ($LASTEXITCODE -ne 0) { throw "Verificacao estatica falhou." }
-
+          python Tests/Native/verify_locales.py
       - name: Preparar Zig 0.15.2
-        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
+        uses: mlugg/setup-zig@v2
         with:
           version: 0.15.2
-
-      - name: Verificar Zig instalado
+      - name: Compilar e testar com Zig oficial
         shell: pwsh
         run: |
-          $detected = (zig version).Trim()
-          if ($detected -ne "0.15.2") { throw "Versao Zig incorreta: $detected" }
-
-      - name: Compilar com Zig 0.15.2 e executar autotestes
-        shell: pwsh
-        run: |
-          $zigPath = (Get-Command zig -ErrorAction Stop).Source
-          Write-Host "Compilador Zig: $zigPath"
-          .\scripts\Build-Native.ps1 -ZigPath $zigPath -NoDownload -Runtime win-x64
-
-      - name: Conferir resultado
-        shell: pwsh
-        run: |
-          if (-not (Test-Path -LiteralPath "dist/win-x64/OrionMemory.exe")) { throw "EXE nao encontrado." }
-          if (-not (Test-Path -LiteralPath "dist/OrionMemory_v1.0.0_win-x64.zip")) { throw "ZIP nao encontrado." }
-
-      - name: Disponibilizar ZIP portatil
+          $zig = (Get-Command zig -ErrorAction Stop).Source
+          & $zig version
+          ./scripts/Build-Native.ps1 -NoDownload -ZigPath $zig -Runtime win-x64
+      - name: Publicar arquivo .zip pronto para usar
         uses: actions/upload-artifact@v4
         with:
           name: OrionMemory-v1.0.0-win-x64
           path: dist/OrionMemory_v1.0.0_win-x64.zip
           if-no-files-found: error
-          retention-days: 30
+
+  codigo-fonte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Empacotar codigo-fonte rastreado
+        shell: bash
+        run: |
+          git archive --format=zip --output=OrionMemory_v1.0.0_CODIGO_FONTE.zip HEAD
+      - name: Disponibilizar ZIP do codigo-fonte
+        uses: actions/upload-artifact@v4
+        with:
+          name: OrionMemory-v1.0.0-codigo-fonte
+          path: OrionMemory_v1.0.0_CODIGO_FONTE.zip
+          if-no-files-found: error

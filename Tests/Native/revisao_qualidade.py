@@ -12,6 +12,7 @@ host = (root / 'NativeHost' / 'host.c').read_text(encoding='utf-8')
 settings = (root / 'NativeHost' / 'native_settings.inc').read_text(encoding='utf-8')
 spinner = (root / 'Tests' / 'Native' / 'verify_numeric_spinners.py').read_text(encoding='utf-8')
 build = (root / 'scripts/Build-Native.ps1').read_text(encoding='utf-8-sig')
+sh = (root / 'Compilar.bat').read_text(encoding='utf-8')
 bench = (root / 'Tests/Native/Medir-RAM-Windows.ps1').read_text(encoding='utf-8-sig')
 index = json.loads((root / 'Languages.json').read_text(encoding='utf-8-sig'))
 checks = []
@@ -19,7 +20,7 @@ def check(label, condition):
     checks.append((label, bool(condition)))
 
 langs = list((root / 'Languages').glob('*.json'))
-check('30 idiomas mantidos', len(langs) == 30)
+check('44 idiomas mantidos', len(langs) == 44)
 for path in langs:
     try:
         json.loads(path.read_text(encoding='utf-8-sig'))
@@ -27,7 +28,7 @@ for path in langs:
     except (json.JSONDecodeError, UnicodeDecodeError):
         ok = False
     check('JSON valido: ' + path.name, ok)
-check('Catalogo de idiomas JSON valido', isinstance(index, list) and len(index) == 30)
+check('Catalogo de idiomas JSON valido', isinstance(index, list) and len(index) == 44)
 check('icone RAM existente', (root / 'Assets' / 'OrionMemory.ico').is_file())
 check('nao cria backups .bak nas preferencias', 'ReplaceFileW(g_settings_path,temporary,NULL' in host)
 check('escrita atomica tem arquivo temporario', 'FlushFileBuffers(h)' in host and 'DeleteFileW(temporary)' in host)
@@ -45,7 +46,8 @@ check('compilacao testa antes de publicar', build.index('Start-Process -FilePath
 check('download oficial com SHA256', 'ziglang.org/download/index.json' in build and 'Get-FileHash' in build and 'SHA-256 invalido' in build)
 check('compilacao usa Zig 0.15.2', "$zigVersion = '0.15.2'" in build)
 check('arquivo ZIP portatil automatico', 'Compress-Archive' in build and 'OrionMemory_v1.0.0_$Runtime.zip' in build)
-check('saida inclui 30 idiomas', '$localeCount -ne 30' in build)
+check('saida inclui 44 idiomas', '$localeCount -ne 44' in build)
+check('bat executa o Powershell de build', 'scripts\\Build-Native.ps1' in sh)
 check('medicao oficial privada residente', 'K32GetProcessMemoryInfo' in bench and 'PrivateWorkingSetSize' in bench)
 check('medicao diagnostica sem limpeza real', '--native-test-dir' in bench)
 check('workflow Windows gerado', (root / '.github/workflows/build-windows.yml').is_file())
