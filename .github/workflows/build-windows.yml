@@ -38,3 +38,19 @@ jobs:
           name: OrionMemory-v1.0.0-win-x64
           path: dist/OrionMemory_v1.0.0_win-x64.zip
           if-no-files-found: error
+
+  codigo-fonte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Empacotar codigo-fonte rastreado
+        shell: bash
+        run: |
+          git archive --format=zip --output=OrionMemory_v1.0.0_CODIGO_FONTE.zip HEAD
+      - name: Disponibilizar ZIP do codigo-fonte
+        uses: actions/upload-artifact@v4
+        with:
+          name: OrionMemory-v1.0.0-codigo-fonte
+          path: OrionMemory_v1.0.0_CODIGO_FONTE.zip
+          if-no-files-found: error
